@@ -83,14 +83,30 @@ func (s *Sequence) add(x uint8) {
 // addMany adds a series of values to the sequence, using count as the
 // length of the series and x as the value.
 func (s *Sequence) addMany(count uint16, x uint8) {
-	if s.count == 0 {
-		b0, b1 := encode(count, x)
-		s.data = append(s.data, b0, b1)
-	} else if n, v := s.last(); v == x && n < maxRepetitions {
-		i := len(s.data) - 2
-		s.data[i], s.data[i+1] = encode(n+count, x)
-	} else {
-		b0, b1 := encode(count, x)
+	c := count
+	if s.count != 0 {
+		n, v := s.last()
+		if v == x && n < maxRepetitions {
+			i := len(s.data) - 2
+			if available := maxRepetitions - n; c > available {
+				s.data[i], s.data[i+1] = encode(maxRepetitions, x)
+				c -= available
+			} else {
+				s.data[i], s.data[i+1] = encode(n+c, x)
+				s.inc(count)
+				return
+			}
+		}
+	}
+	if c > maxRepetitions {
+		b0, b1 := encode(maxRepetitions, x)
+		for c > maxRepetitions {
+			s.data = append(s.data, b0, b1)
+			c -= maxRepetitions
+		}
+	}
+	if c > 0 {
+		b0, b1 := encode(c, x)
 		s.data = append(s.data, b0, b1)
 	}
 	s.inc(count)

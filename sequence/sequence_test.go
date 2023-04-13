@@ -51,6 +51,7 @@ func TestInc(t *testing.T) {
 		t.Fatalf("got %d, want %d\n", got, want)
 	}
 }
+
 func TestLast(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", "2000-01-02 03:04:05")
 	s := NewSequence(x)
@@ -65,5 +66,48 @@ func TestLast(t *testing.T) {
 	got.count, got.flag = s.last()
 	if got != want {
 		t.Fatalf("got %+v, want %+v\n", got, want)
+	}
+}
+
+func TestAddOne(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", "2000-01-02 03:04:05")
+	s := NewSequence(x)
+	tests := []struct {
+		id    int
+		value uint8
+		want  []byte
+	}{
+		{1, FlagInactive, []byte{0x25, 0xc0, 0x6e, 0x38, 0x1, 0x0, 0x4, 0x0}},
+		{2, FlagActive, []byte{0x25, 0xc0, 0x6e, 0x38, 0x2, 0x0, 0x4, 0x0, 0x5, 0x0}},
+		{3, FlagActive, []byte{0x25, 0xc0, 0x6e, 0x38, 0x3, 0x0, 0x4, 0x0, 0x9, 0x0}},
+		{4, FlagUnknown, []byte{0x25, 0xc0, 0x6e, 0x38, 0x4, 0x0, 0x4, 0x0, 0x9, 0x0, 0x6, 0x0}},
+	}
+	for _, tt := range tests {
+		s.addOne(tt.value)
+		if !bytes.Equal(s.data, tt.want) {
+			t.Fatalf("test %d:\ngot  %08b\nwant %08b\n", tt.id, s.data, tt.want)
+		}
+	}
+
+}
+
+func TestAddMany(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", "2000-01-02 03:04:05")
+	s := NewSequence(x)
+	tests := []struct {
+		id    int
+		count uint16
+		value uint8
+		want  []byte
+	}{
+		{1, 129, FlagInactive, []byte{0x25, 0xc0, 0x6e, 0x38, 0x81, 0x0, 0x4, 0x2}},
+		{2, 1919, FlagActive, []byte{0x25, 0xc0, 0x6e, 0x38, 0x0, 0x8, 0x4, 0x2, 0xfd, 0x1d}},
+		{3, 32767, FlagActive, []byte{0x25, 0xc0, 0x6e, 0x38, 0xff, 0x87, 0x4, 0x2, 0xfd, 0xff, 0xfd, 0xff, 0x1, 0x1e}},
+	}
+	for _, tt := range tests {
+		s.addMany(tt.count, tt.value)
+		if !bytes.Equal(s.data, tt.want) {
+			t.Fatalf("test %d:\ngot  %08b\nwant %08b\n", tt.id, s.data, tt.want)
+		}
 	}
 }

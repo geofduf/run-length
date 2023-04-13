@@ -63,12 +63,12 @@ func (s *Sequence) Add(x uint8) error {
 	if delta > 1 {
 		s.addMany(delta-1, FlagUnknown)
 	}
-	s.add(x)
+	s.addOne(x)
 	return nil
 }
 
-// add adds a value to the sequence.
-func (s *Sequence) add(x uint8) {
+// addOne adds a value to the sequence.
+func (s *Sequence) addOne(x uint8) {
 	if s.count == 0 {
 		s.data = append(s.data, 0b100|x, 0)
 	} else if n, v := s.last(); v == x && n < maxRepetitions {

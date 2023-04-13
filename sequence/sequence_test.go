@@ -111,3 +111,12 @@ func TestAddMany(t *testing.T) {
 		}
 	}
 }
+
+func TestNewSequenceFromValues(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", "2000-01-02 03:04:05")
+	s := NewSequenceFromValues(x, []uint8{FlagInactive, FlagActive, FlagActive, FlagUnknown})
+	want := []byte{0x25, 0xc0, 0x6e, 0x38, 0x4, 0x0, 0x4, 0x0, 0x9, 0x0, 0x6, 0x0}
+	if !bytes.Equal(s.data, want) {
+		t.Fatalf("\ngot  %08b\nwant %08b\n", s.data, want)
+	}
+}

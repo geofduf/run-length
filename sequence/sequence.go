@@ -49,6 +49,62 @@ func NewSequence(t time.Time) *Sequence {
 	return &Sequence{ts: ts, data: data}
 }
 
+// NewSequenceFromValues creates a new Sequence using t as its reference timestamp and
+// values as its initial content. If the length of values is greater than the length
+// of the sequence, the trailing elements will be silently ignored.
+func NewSequenceFromValues(t time.Time, values []uint8) *Sequence {
+	ts := t.Unix()
+	data := make([]byte, 6)
+	x := ts
+	i := indexTimestamp
+	for x > 0 {
+		data[i] = byte(x)
+		x >>= 8
+		i++
+	}
+	s := &Sequence{ts: ts, data: data}
+	n := len(values)
+	if n > length {
+		n = length
+	}
+	for i := 0; i < n; i++ {
+		s.addOne(values[i])
+	}
+	return s
+}
+
+// NewSequenceFromBytes creates a new Sequence using data, an encoded Sequence, as
+// its inital content.
+func NewSequenceFromBytes(data []byte) (*Sequence, error) {
+	if len(data) < indexData {
+		return nil, errors.New("cannot decode the sequence")
+	}
+	var ts int64
+	for i := 0; i < 4; i++ {
+		ts |= int64(data[indexTimestamp+i]) << (i * 8)
+	}
+	count := uint16(data[indexCounter]) | uint16(data[indexCounter+1])<<8
+	if count > length {
+		return nil, errors.New("cannot decode the sequence")
+	}
+	var numberOfValues uint16
+	if len(data) > indexData {
+		if (len(data)-indexData)%2 != 0 {
+			return nil, errors.New("cannot decode the sequence")
+		}
+		for i := indexData; i < len(data); i += 2 {
+			n, _ := decode(data[i], data[i+1])
+			numberOfValues += n
+		}
+	}
+	if count != numberOfValues {
+		return nil, errors.New("cannot decode the sequence")
+	}
+	clone := make([]byte, len(data))
+	copy(clone, data)
+	return &Sequence{ts: ts, count: count, data: clone}, nil
+}
+
 // Add adds a value to the sequence, returning an error if outside the
 // time boundaries of the sequence or if an entry already exists.
 func (s *Sequence) Add(x uint8) error {

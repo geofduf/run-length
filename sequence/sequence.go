@@ -126,14 +126,17 @@ func (s *Sequence) Add(x uint8) error {
 // addOne adds a value to the sequence.
 func (s *Sequence) addOne(x uint8) {
 	x &= 1<<flagBits - 1
-	if s.count == 0 {
-		s.data = append(s.data, 1<<flagBits|x, 0)
-	} else if n, v := s.last(); v == x && n < maxRepetitions {
-		i := len(s.data) - 2
-		s.data[i], s.data[i+1] = encode(n+1, x)
-	} else {
-		s.data = append(s.data, 1<<flagBits|x, 0)
+	if s.count != 0 {
+		n, v := s.last()
+		if v == x && n < maxRepetitions {
+			i := len(s.data) - 2
+			s.data[i], s.data[i+1] = encode(n+1, x)
+			s.inc(1)
+			return
+		}
 	}
+	b0, b1 := encode(1, x)
+	s.data = append(s.data, b0, b1)
 	s.inc(1)
 }
 

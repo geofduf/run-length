@@ -212,6 +212,11 @@ func (s *Sequence) last() (uint16, uint8) {
 	return decode(s.data[i], s.data[i+1])
 }
 
+// interval returns the closed time interval associated to the sequence.
+func (s *Sequence) interval() interval {
+	return interval{start: s.ts, end: s.ts + (length-1)*frequency}
+}
+
 // encode encodes count and value as 2 bytes, keeping the 14 most
 // significant bits of count and the 2 most significant bits of value.
 func encode(count uint16, value uint8) (byte, byte) {

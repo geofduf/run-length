@@ -104,6 +104,19 @@ func (store *Store) Batch(t time.Time, statements []Statement) (error, []string)
 	return nil, report
 }
 
+// Keys returns the identifiers known in the store.
+func (s *Store) Keys() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	keys := make([]string, len(s.m))
+	i := 0
+	for k := range s.m {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
 // Dump allows to export the store as a slice of bytes.
 func (s *Store) Dump() ([]byte, error) {
 	var buf bytes.Buffer

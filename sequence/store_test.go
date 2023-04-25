@@ -32,6 +32,23 @@ func TestStoreDumpLoad(t *testing.T) {
 	}
 }
 
+func TestStoreKeys(t *testing.T) {
+	store := NewStore()
+	want := []string{"k1", "k2"}
+	for _, v := range want {
+		store.AddSequence(v, NewSequence(newTime("2018-01-01 00:00:00")))
+	}
+	got := store.Keys()
+	if len(got) != len(want) {
+		t.Fatalf("got %d element(s), want %d element(s)", len(got), len(want))
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
 func assertSequencesEqual(x, y *Sequence) bool {
 	if x.ts != y.ts || x.count != y.count {
 		return false

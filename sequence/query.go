@@ -5,16 +5,26 @@ import (
 	"time"
 )
 
-// Query returns values stored in the sequence using start and end
-// as closed interval filter.
-func (s *Sequence) Query(start, end time.Time) ([]uint8, error) {
+// A QuerySet represents a set of values obtained by performing a query
+// against one or several sequences.
+type QuerySet struct {
+	// Timestamp specifies the unix time associated to
+	// the first element of Values.
+	Timestamp int64
+
+	// Values holds the values returned by the query.
+	Values []uint8
+}
+
+// Query returns a QuerySet of s using start and end as closed interval filter.
+func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 	if start.After(end) {
-		return nil, errors.New("invalid arguments")
+		return QuerySet{}, errors.New("invalid arguments")
 	}
 
 	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
 	if !ok {
-		return nil, errors.New("out of bounds")
+		return QuerySet{}, errors.New("out of bounds")
 	}
 
 	x := int(ceilInt64(r.start-s.ts, frequency)) / frequency
@@ -57,7 +67,7 @@ func (s *Sequence) Query(start, end time.Time) ([]uint8, error) {
 		data[i] = FlagUnknown
 	}
 
-	return data, nil
+	return QuerySet{Values: data, Timestamp: ceilInt64(r.start, frequency)}, nil
 }
 
 // ceilInt64 returns the least integer value greater than or

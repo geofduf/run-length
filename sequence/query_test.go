@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -14,22 +15,26 @@ func TestSequenceQuery(t *testing.T) {
 		id    int
 		start time.Time
 		end   time.Time
-		want  []uint8
+		want  QuerySet
 	}{
-		{1, shift(ts, 0, -5, 0), shift(ts, 1, 5, 0), values},
-		{2, shift(ts, 0, -5, 0), shift(ts, 0, 6, -1), []uint8{1, 1, 1, 1, 1, 0}},
-		{3, shift(ts, 0, 4, 0), shift(ts, 0, 10, 0), []uint8{1, 0, 0, 0, 0, 0, 1}},
-		{4, shift(ts, 1, -5, -1), shift(ts, 1, 5, 0), []uint8{2, 2, 2, 2, 0}},
-		{5, shift(ts, 1, -5, 1), shift(ts, 1, 5, 0), []uint8{2, 2, 2, 0}},
+		{1, shift(ts, 0, -5, 0), shift(ts, 1, 5, 0), QuerySet{s.ts, values}},
+		{2, shift(ts, 0, -5, 0), shift(ts, 0, 6, -1), QuerySet{s.ts, []uint8{1, 1, 1, 1, 1, 0}}},
+		{3, shift(ts, 0, 4, 0), shift(ts, 0, 10, 0), QuerySet{s.ts + 4*frequency, []uint8{1, 0, 0, 0, 0, 0, 1}}},
+		{4, shift(ts, 1, -5, -1), shift(ts, 1, 5, 0), QuerySet{s.ts + (length-5)*frequency, []uint8{2, 2, 2, 2, 0}}},
+		{5, shift(ts, 1, -5, 1), shift(ts, 1, 5, 0), QuerySet{s.ts + (length-4)*frequency, []uint8{2, 2, 2, 0}}},
 	}
 	for _, tt := range tests {
 		got, err := s.Query(tt.start, tt.end)
+		prefix := fmt.Sprintf("test %d (%s, %s)", tt.id, tt.start, tt.end)
 		if err != nil {
-			t.Errorf("test %d (%s, %s): got error %s, want error nil", tt.id, tt.start, tt.end, err)
-		} else if len(got) != len(tt.want) {
-			t.Errorf("test %d (%s, %s): got slice length %d, want %d", tt.id, tt.start, tt.end, len(got), len(tt.want))
-		} else if !assertValuesEqual(got, tt.want) {
-			t.Errorf("test %d (%s, %s): []uint8 slices are not equal", tt.id, tt.start, tt.end)
+			t.Errorf("%s: got error %s, want error nil", prefix, err)
+		} else if n, m := len(got.Values), len(tt.want.Values); n != m {
+			t.Errorf("%s: got Values length %d, want %d", prefix, n, m)
+		} else if !assertValuesEqual(got.Values, tt.want.Values) {
+			t.Errorf("%s: Values are not equal", prefix)
+		}
+		if got.Timestamp != tt.want.Timestamp {
+			t.Errorf("%s: got Timestamp %d, want %d", prefix, got.Timestamp, tt.want.Timestamp)
 		}
 	}
 }

@@ -44,22 +44,25 @@ func (store *Store) NewSequence(t time.Time, key string) {
 	store.mu.Unlock()
 }
 
-// AddSequence adds an existing Sequence to the store using key as its identifier.
+// AddSequence adds a copy of s to the store using key as its identifier.
 // If a Sequence already exists for the identifier it is silently replaced with the new
 // Sequence.
 func (store *Store) AddSequence(key string, s *Sequence) {
 	store.mu.Lock()
-	store.m[key] = s
+	store.m[key] = s.clone()
 	store.mu.Unlock()
 }
 
-// GetSequence returns the Sequence associated to key. The second value returned is
+// GetSequence returns a copy of the Sequence associated to key. The second value returned is
 // true if the key exists in the store and false if not.
 func (store *Store) GetSequence(key string) (*Sequence, bool) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	s, ok := store.m[key]
-	return s, ok
+	if !ok {
+		return nil, false
+	}
+	return s.clone(), true
 }
 
 // AddValue adds a value to a Sequence, returning an error if the key does not

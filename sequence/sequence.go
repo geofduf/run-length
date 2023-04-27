@@ -217,6 +217,17 @@ func (s *Sequence) interval() interval {
 	return interval{start: s.ts, end: s.ts + (length-1)*frequency}
 }
 
+// clone returns a copy of s.
+func (s *Sequence) clone() *Sequence {
+	clone := &Sequence{
+		ts:    s.ts,
+		count: s.count,
+		data:  make([]uint8, len(s.data)),
+	}
+	copy(clone.data, s.data)
+	return clone
+}
+
 // encode encodes count and value as 2 bytes, keeping the 14 most
 // significant bits of count and the 2 most significant bits of value.
 func encode(count uint16, value uint8) (byte, byte) {

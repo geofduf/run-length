@@ -49,6 +49,54 @@ func TestStoreKeys(t *testing.T) {
 	}
 }
 
+func TestStoreExecuteUnsafe(t *testing.T) {
+	type result struct {
+		err    bool
+		length int
+	}
+	tests := []struct {
+		id                  string
+		key                 string
+		value               uint8
+		statementType       uint8
+		createIfNotExists   bool
+		createWithTimestamp time.Time
+		want                result
+	}{
+		{"1", "k1", FlagActive, StatementTypeAddValue, false, time.Now(), result{true, 0}},
+		{"2", "k1", FlagActive, StatementTypeAddValue, true, time.Now(), result{false, 1}},
+		{"3", "k1", FlagActive, StatementTypeAddValue, true, time.Now().Add(5 * time.Minute), result{true, 1}},
+		{"4", "k1", FlagActive, 2, true, time.Now(), result{true, 0}},
+	}
+	for _, tt := range tests {
+		prefix := "test " + tt.id
+		store := NewStore()
+		statement := Statement{
+			Key:                 tt.key,
+			Value:               tt.value,
+			Type:                tt.statementType,
+			CreateIfNotExists:   tt.createIfNotExists,
+			CreateWithTimestamp: tt.createWithTimestamp,
+		}
+		err := store.executeUnsafe(statement)
+		if err != nil {
+			if !tt.want.err {
+				t.Fatalf("%s: didn't expect an error, got %s", prefix, err)
+			}
+		} else if tt.want.err {
+			t.Fatalf("%s: expected an error", prefix)
+		}
+		if n := len(store.m); n != tt.want.length {
+			t.Fatalf("%s: got length %d, expected length %d", prefix, n, tt.want.length)
+		}
+		if tt.want.length == 1 {
+			if _, ok := store.m[tt.key]; !ok {
+				t.Fatalf("%s: expected key to exist in store", prefix)
+			}
+		}
+	}
+}
+
 func assertSequencesEqual(x, y *Sequence) bool {
 	if x.ts != y.ts || x.count != y.count {
 		return false

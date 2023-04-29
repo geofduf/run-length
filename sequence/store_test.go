@@ -10,8 +10,8 @@ func TestStoreDumpLoad(t *testing.T) {
 	src := NewStore()
 	t1, _ := time.Parse("2006-01-02 03:04:05", "2018-01-01 00:00:00")
 	t2, _ := time.Parse("2006-01-02 03:04:05", "2018-01-08 00:00:00")
-	src.AddSequence("k1", NewSequenceFromValues(t1, newSliceOfValues(length, 0)))
-	src.AddSequence("k11", NewSequenceFromValues(t2, newSliceOfValues(length, 1)))
+	src.Add("k1", NewSequenceFromValues(t1, newSliceOfValues(length, 0)))
+	src.Add("k11", NewSequenceFromValues(t2, newSliceOfValues(length, 1)))
 	dump, err := src.Dump()
 	if err != nil {
 		t.Fatalf("got an unexpected error: %s", err)
@@ -36,7 +36,7 @@ func TestStoreKeys(t *testing.T) {
 	store := NewStore()
 	want := []string{"k1", "k2"}
 	for _, v := range want {
-		store.AddSequence(v, NewSequence(newTime("2018-01-01 00:00:00")))
+		store.Add(v, NewSequence(newTime("2018-01-01 00:00:00")))
 	}
 	got := store.Keys()
 	if len(got) != len(want) {

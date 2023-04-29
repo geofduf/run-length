@@ -9,17 +9,15 @@ import (
 	"time"
 )
 
-type StatementType uint8
-
 const (
-	StatementTypeAddValue StatementType = iota
+	StatementTypeAddValue uint8 = iota
 )
 
 // A Statement represents an operation to perform on a store.
 type Statement struct {
 	Key   string
 	Value uint8
-	Type  StatementType
+	Type  uint8
 }
 
 // A Store represents a collection of Sequences. A Store can be used simultaneously

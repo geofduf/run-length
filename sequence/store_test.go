@@ -42,9 +42,16 @@ func TestStoreKeys(t *testing.T) {
 	if len(got) != len(want) {
 		t.Fatalf("got %d element(s), want %d element(s)", len(got), len(want))
 	}
-	for i := range got {
-		if got[i] != want[i] {
-			t.Fatalf("got %v, want %v", got, want)
+	for _, x := range want {
+		found := false
+		for _, y := range got {
+			if x == y {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected %s in the slice, got %v", x, got)
 		}
 	}
 }

@@ -2,6 +2,7 @@ package sequence
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -68,6 +69,55 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 	}
 
 	return QuerySet{Values: data, Timestamp: ceilInt64(r.start, frequency)}, nil
+}
+
+// Query returns a QuerySet of interval [start, end] built by querying each element
+// of a slice of encoded sequences using start and end as closed interval filter.
+func Query(encodedSequences [][]byte, start, end time.Time) (QuerySet, error) {
+	if start.After(end) {
+		return QuerySet{}, errors.New("invalid arguments")
+	}
+	sequences := make([]*Sequence, len(encodedSequences))
+	for i, v := range encodedSequences {
+		s, err := NewSequenceFromBytes(v)
+		if err != nil {
+			return QuerySet{}, fmt.Errorf("%s, at index %d", err, i)
+		}
+		sequences[i] = s
+	}
+	return query(sequences, start, end)
+}
+
+// query returns a QuerySet of interval [start, end] built by querying each element
+// of sequences using start and end as closed interval filter.
+func query(sequences []*Sequence, start, end time.Time) (QuerySet, error) {
+	if start.After(end) {
+		return QuerySet{}, errors.New("invalid arguments")
+	}
+	x := ceilInt64(start.Unix(), frequency)
+	y := floorInt64(end.Unix(), frequency)
+	data := newSliceOfValues(int(y/frequency-x/frequency+1), FlagUnknown)
+	for _, s := range sequences {
+		iv := s.interval()
+		if x <= iv.start && y >= iv.end {
+			values := s.Values()
+			m := int((s.ts - x) / frequency)
+			n := m + len(values)
+			copy(data[m:n], values)
+			continue
+		}
+		qs, err := s.Query(start, end)
+		if err != nil {
+			continue
+		}
+		m := 0
+		if s.ts > x {
+			m = int((s.ts - x) / frequency)
+		}
+		n := m + len(qs.Values)
+		copy(data[m:n], qs.Values)
+	}
+	return QuerySet{Timestamp: x, Values: data}, nil
 }
 
 // ceilInt64 returns the least integer value greater than or

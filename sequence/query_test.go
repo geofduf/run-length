@@ -39,6 +39,43 @@ func TestSequenceQuery(t *testing.T) {
 	}
 }
 
+func TestQuery(t *testing.T) {
+	ts := newTime("2018-01-01 00:00:00")
+	encodedSequences := [][]byte{
+		NewSequenceFromValues(ts, values).Bytes(),
+		NewSequenceFromValues(shift(ts, 1, 0, 0), values).Bytes(),
+	}
+	want := newSliceOfValues(length*2+10, FlagUnknown)
+	copy(want[5:], values)
+	copy(want[5+length:], values)
+	tests := []struct {
+		id    int
+		start time.Time
+		end   time.Time
+		want  QuerySet
+	}{
+		{1, shift(ts, 0, -5, 0), shift(ts, 2, 5, -1), QuerySet{0, want}},
+		{2, shift(ts, 1, -2, -3), shift(ts, 1, 3, -1), QuerySet{0, append(values[length-2:], values[:3]...)}},
+	}
+	for _, tt := range tests {
+		tt.want.Timestamp = ceilInt64(tt.start.Unix(), frequency)
+		prefix := fmt.Sprintf("test %d (%s, %s)", tt.id, tt.start, tt.end)
+		got, err := Query(encodedSequences, tt.start, tt.end)
+		if err != nil {
+			t.Fatalf("%s: got error %s, want error nil", prefix, err)
+		}
+		if m, n := len(got.Values), len(tt.want.Values); m != n {
+			t.Fatalf("%s: got length %d, want length %d", prefix, m, n)
+		}
+		if !assertValuesEqual(got.Values, tt.want.Values) {
+			t.Fatalf("%s: values are not equal", prefix)
+		}
+		if got.Timestamp != tt.want.Timestamp {
+			t.Fatalf("%s: got %d, want %d", prefix, got.Timestamp, tt.want.Timestamp)
+		}
+	}
+}
+
 func dataset() []uint8 {
 	values := newSliceOfValues(length, FlagUnknown)
 	copy(values, []uint8{1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1})

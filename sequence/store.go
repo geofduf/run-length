@@ -38,52 +38,52 @@ func NewStore() *Store {
 // The new Sequence is added to the store using key as its identifier. If a
 // Sequence already exists for the identifier it is silently replaced with the new
 // Sequence.
-func (store *Store) New(t time.Time, key string) {
-	store.mu.Lock()
-	store.m[key] = NewSequence(t)
-	store.mu.Unlock()
+func (s *Store) New(t time.Time, key string) {
+	s.mu.Lock()
+	s.m[key] = NewSequence(t)
+	s.mu.Unlock()
 }
 
 // Add adds a copy of s to the store using key as its identifier.
 // If a Sequence already exists for the identifier it is silently replaced with the new
 // Sequence.
-func (store *Store) Add(key string, s *Sequence) {
-	store.mu.Lock()
-	store.m[key] = s.clone()
-	store.mu.Unlock()
+func (s *Store) Add(key string, x *Sequence) {
+	s.mu.Lock()
+	s.m[key] = x.clone()
+	s.mu.Unlock()
 }
 
 // Get returns a copy of the Sequence associated to key. The second value returned is
 // true if the key exists in the store and false if not.
-func (store *Store) Get(key string) (*Sequence, bool) {
-	store.mu.RLock()
-	defer store.mu.RUnlock()
-	s, ok := store.m[key]
+func (s *Store) Get(key string) (*Sequence, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	x, ok := s.m[key]
 	if !ok {
 		return nil, false
 	}
-	return s.clone(), true
+	return x.clone(), true
 }
 
 // Execute executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
 // It currently only supports statements of type StatementTypeAddValue.
-func (store *Store) Execute(statement Statement) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	return store.executeUnsafe(statement)
+func (s *Store) Execute(statement Statement) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.executeUnsafe(statement)
 }
 
 // Batch executes multiple statements against the store. Individual errors are non
 // blocking, but if one or more statements could not be executed or induced an error,
 // the method will return a global error and a slice holding information about each
 // individual error. It currently only supports statements of type StatementTypeAddValue.
-func (store *Store) Batch(statements []Statement) (error, []string) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
+func (s *Store) Batch(statements []Statement) (error, []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var report []string
 	for i, v := range statements {
-		if err := store.executeUnsafe(v); err != nil {
+		if err := s.executeUnsafe(v); err != nil {
 			report = append(report, fmt.Sprintf("%s, at index %d", err, i))
 		}
 	}
@@ -156,17 +156,17 @@ func (s *Store) Load(data []byte) error {
 // It currently only supports statements of type StatementTypeAddValue. This method
 // is not goroutine-safe. The caller is responsible for properly acquiring / releasing
 // the lock on the store.
-func (store *Store) executeUnsafe(statement Statement) error {
+func (s *Store) executeUnsafe(statement Statement) error {
 	if statement.Type != StatementTypeAddValue {
 		return errors.New("unknown statement type")
 	}
-	s, ok := store.m[statement.Key]
+	x, ok := s.m[statement.Key]
 	if !ok {
 		if !statement.CreateIfNotExists {
 			return errors.New("key does not exist")
 		}
-		s = NewSequence(statement.CreateWithTimestamp)
-		store.m[statement.Key] = s
+		x = NewSequence(statement.CreateWithTimestamp)
+		s.m[statement.Key] = x
 	}
-	return s.Add(statement.Value)
+	return x.Add(statement.Value)
 }

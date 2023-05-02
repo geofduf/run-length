@@ -17,6 +17,26 @@ type QuerySet struct {
 	Values []uint8
 }
 
+// A QueryGroupSet represents a time series obtained by applying a set of
+// aggregate functions on values grouped in terms of time.
+type QueryGroupSet struct {
+	// Timestamp specifies the unix time associated to
+	// the first element of the time series.
+	Timestamp int64
+
+	// Frequency specifies the frequency of the
+	// time series in number of seconds.
+	Frequency int
+
+	// Sum holds the sum of valid values in
+	// each group.
+	Sum []int
+
+	// Count holds the number of valid values in
+	// in each group.
+	Count []int
+}
+
 // Query returns a QuerySet of s using start and end as closed interval filter.
 func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 	if start.After(end) {
@@ -69,6 +89,88 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 	}
 
 	return QuerySet{Values: data, Timestamp: ceilInt64(r.start, frequency)}, nil
+}
+
+// QueryGroup returns a QueryGroupSet of s using start and end as closed interval filter and
+// d as grouping interval. The grouping interval is silently floored to the second.
+// Following the curent implementation it must be greater or equal to 120 seconds and an
+// exact divisor of of 10080 seconds.
+func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroupSet, error) {
+	// TODO: review + clean method
+	if start.After(end) {
+		return QueryGroupSet{}, errors.New("invalid time filter")
+	}
+
+	aggregation := int(d.Seconds()) / frequency
+
+	if aggregation < 2 || aggregation > length || length%aggregation != 0 {
+		return QueryGroupSet{}, errors.New("invalid grouping interval")
+	}
+
+	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
+	if !ok {
+		return QueryGroupSet{}, errors.New("out of bounds")
+	}
+
+	x := int(ceilInt64(r.start-s.ts, frequency)) / frequency
+	y := int(r.end-s.ts) / frequency
+
+	numberOfValues := y/aggregation - x/aggregation + 1
+
+	qs := QueryGroupSet{
+		Timestamp: s.ts + floorInt64(int64(x*frequency), int64(frequency*aggregation)),
+		Frequency: frequency * aggregation,
+		Sum:       make([]int, numberOfValues),
+		Count:     make([]int, numberOfValues),
+	}
+
+	src := 0
+	shift := (x % aggregation) - x
+
+	for p := indexData; p < len(s.data); p += 2 {
+		n, v := decode(s.data[p], s.data[p+1])
+		next := src + int(n)
+
+		if x >= next || v == FlagUnknown {
+			src = next
+			continue
+		}
+
+		first := true
+
+		if x > src {
+			src = x
+		}
+
+		target := next
+		if y < next {
+			target = y + 1
+		}
+
+		for src < target {
+			dst := (shift + src) / aggregation
+			n := aggregation
+			if first {
+				n -= src % aggregation
+				first = false
+			}
+			if src+n > target {
+				n = target - src
+			}
+			if v == 1 {
+				qs.Sum[dst] += n
+			}
+			qs.Count[dst] += n
+			src += n
+		}
+
+		if next > y {
+			break
+		}
+
+	}
+
+	return qs, nil
 }
 
 // Query returns a QuerySet of interval [start, end] built by querying each element

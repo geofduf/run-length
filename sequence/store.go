@@ -34,8 +34,7 @@ func NewStore() *Store {
 	return &Store{m: make(map[string]*Sequence)}
 }
 
-// New creates and intializes a new Sequence using t as its reference timestamp.
-// The new Sequence is added to the store using key as its identifier. If a
+// New creates and adds a new Sequence to the store using key as its identifier. If a
 // Sequence already exists for the identifier it is silently replaced with the new
 // Sequence.
 func (s *Store) New(t time.Time, key string) {

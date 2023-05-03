@@ -35,9 +35,10 @@ type Sequence struct {
 	data  []byte
 }
 
-// NewSequence creates and intializes a new Sequence using t as its reference timestamp.
+// NewSequence creates and intializes a new Sequence using t rounded down to
+// the minute as its reference timestamp.
 func NewSequence(t time.Time) *Sequence {
-	ts := t.Unix()
+	ts := floorInt64(t.Unix(), frequency)
 	data := make([]byte, 6)
 	x := ts
 	i := indexTimestamp
@@ -49,11 +50,12 @@ func NewSequence(t time.Time) *Sequence {
 	return &Sequence{ts: ts, data: data}
 }
 
-// NewSequenceFromValues creates a new Sequence using t as its reference timestamp and
-// values as its initial content. If the length of values is greater than the length
-// of the sequence, the trailing elements will be silently ignored.
+// NewSequenceFromValues creates a new Sequence using t rounded down to the minute
+// as its reference timestamp and values as its initial content. If the length of
+// values is greater than the length of the sequence, the trailing elements will be
+// silently ignored.
 func NewSequenceFromValues(t time.Time, values []uint8) *Sequence {
-	ts := t.Unix()
+	ts := floorInt64(t.Unix(), frequency)
 	data := make([]byte, 6)
 	x := ts
 	i := indexTimestamp

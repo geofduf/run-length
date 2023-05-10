@@ -1,25 +1,27 @@
 package sequence
 
 import (
-	"bytes"
 	"testing"
 	"time"
 )
 
 func TestStoreDumpLoad(t *testing.T) {
 	src := NewStore()
-	t1, _ := time.Parse("2006-01-02 03:04:05", "2018-01-01 00:00:00")
-	t2, _ := time.Parse("2006-01-02 03:04:05", "2018-01-08 00:00:00")
-	src.Add("k1", NewSequenceFromValues(t1, newSliceOfValues(length, 0)))
-	src.Add("k11", NewSequenceFromValues(t2, newSliceOfValues(length, 1)))
+	t1, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	t2, _ := time.Parse("2006-01-02 03:04:05", "2001-02-03 04:05:06")
+	src.Add("k1", NewSequenceFromValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
+	src.Add("k11", NewSequenceFromValues(t2, 120, newSliceOfValues(32, 1)))
 	dump, err := src.Dump()
 	if err != nil {
-		t.Fatalf("got an unexpected error: %s", err)
+		t.Fatalf("got error %s, want error nil", err)
 	}
 	dst := NewStore()
-	dst.Load(dump)
-	if len(src.m) != len(dst.m) {
-		t.Fatalf("got %d element(s), want %d element(s)", len(dst.m), len(src.m))
+	err = dst.Load(dump)
+	if err != nil {
+		t.Fatalf("got error %s, want error nil", err)
+	}
+	if n, m := len(src.m), len(dst.m); n != m {
+		t.Fatalf("got %d, want %d", n, m)
 	}
 	for k := range src.m {
 		v, ok := dst.m[k]
@@ -27,20 +29,21 @@ func TestStoreDumpLoad(t *testing.T) {
 			t.Fatalf("key %s should exist in store", k)
 		}
 		if !assertSequencesEqual(src.m[k], v) {
-			t.Fatalf("sequences are not equal for key %s", k)
+			t.Fatalf("\ngot  %+v\nwant %+v", src.m[k], v)
 		}
 	}
 }
 
 func TestStoreKeys(t *testing.T) {
 	store := NewStore()
+	t1, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	t2, _ := time.Parse("2006-01-02 03:04:05", "2001-02-03 04:05:06")
+	store.Add("k1", NewSequenceFromValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
+	store.Add("k2", NewSequenceFromValues(t2, 120, newSliceOfValues(32, 1)))
 	want := []string{"k1", "k2"}
-	for _, v := range want {
-		store.Add(v, NewSequence(newTime("2018-01-01 00:00:00")))
-	}
 	got := store.Keys()
-	if len(got) != len(want) {
-		t.Fatalf("got %d element(s), want %d element(s)", len(got), len(want))
+	if n, m := len(got), len(want); n != m {
+		t.Fatalf("got %d, want %d", n, m)
 	}
 	for _, x := range want {
 		found := false
@@ -51,7 +54,7 @@ func TestStoreKeys(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Fatalf("expected %s in the slice, got %v", x, got)
+			t.Fatalf("expected %s in slice %v", x, got)
 		}
 	}
 }
@@ -62,7 +65,7 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 		length int
 	}
 	tests := []struct {
-		id                  string
+		id                  int
 		key                 string
 		value               uint8
 		statementType       uint8
@@ -70,13 +73,12 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 		createWithTimestamp time.Time
 		want                result
 	}{
-		{"1", "k1", FlagActive, StatementTypeAddValue, false, time.Now(), result{true, 0}},
-		{"2", "k1", FlagActive, StatementTypeAddValue, true, time.Now(), result{false, 1}},
-		{"3", "k1", FlagActive, StatementTypeAddValue, true, time.Now().Add(5 * time.Minute), result{true, 1}},
-		{"4", "k1", FlagActive, 2, true, time.Now(), result{true, 0}},
+		{1, "k1", FlagActive, StatementTypeAddValue, false, time.Now(), result{true, 0}},
+		{2, "k1", FlagActive, StatementTypeAddValue, true, time.Now(), result{false, 1}},
+		{3, "k1", FlagActive, StatementTypeAddValue, true, time.Now().Add(5 * time.Minute), result{true, 1}},
+		{4, "k1", FlagActive, 2, true, time.Now(), result{true, 0}},
 	}
 	for _, tt := range tests {
-		prefix := "test " + tt.id
 		store := NewStore()
 		statement := Statement{
 			Key:                 tt.key,
@@ -84,32 +86,23 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 			Type:                tt.statementType,
 			CreateIfNotExists:   tt.createIfNotExists,
 			CreateWithTimestamp: tt.createWithTimestamp,
+			CreateWithFrequency: testSequenceFrequency,
 		}
 		err := store.executeUnsafe(statement)
 		if err != nil {
 			if !tt.want.err {
-				t.Fatalf("%s: didn't expect an error, got %s", prefix, err)
+				t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
 			}
 		} else if tt.want.err {
-			t.Fatalf("%s: expected an error", prefix)
+			t.Fatalf("test %d: got error nil, want non nil error", tt.id)
 		}
 		if n := len(store.m); n != tt.want.length {
-			t.Fatalf("%s: got length %d, expected length %d", prefix, n, tt.want.length)
+			t.Fatalf("test %d: got %d, want %d", tt.id, n, tt.want.length)
 		}
 		if tt.want.length == 1 {
 			if _, ok := store.m[tt.key]; !ok {
-				t.Fatalf("%s: expected key to exist in store", prefix)
+				t.Fatalf("test %d: expected key to exist in store", tt.id)
 			}
 		}
 	}
-}
-
-func assertSequencesEqual(x, y *Sequence) bool {
-	if x.ts != y.ts || x.count != y.count {
-		return false
-	}
-	if !bytes.Equal(x.data, y.data) {
-		return false
-	}
-	return true
 }

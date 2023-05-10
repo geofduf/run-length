@@ -6,15 +6,19 @@ import (
 )
 
 const (
-	frequency = 60
-	length    = 7 * 86400 / frequency
-	flagBits  = 2
-
-	maxRepetitions = 1<<(16-flagBits) - 1
+	sizeTimestamp = 4
+	sizeFrequency = 2
+	sizeLength    = 4
+	sizeCounter   = 4
 
 	indexTimestamp = 0
-	indexCounter   = 4
-	indexData      = 6
+	indexFrequency = indexTimestamp + sizeTimestamp
+	indexLength    = indexFrequency + sizeFrequency
+	indexCounter   = indexLength + sizeLength
+	indexData      = indexCounter + sizeCounter
+
+	flagBits       = 2
+	maxRepetitions = uint16(1<<(16-flagBits) - 1)
 )
 
 const (
@@ -22,52 +26,45 @@ const (
 	FlagActive                // 0b01
 	FlagUnknown               // 0b10
 	FlagNotUsed               // 0b11
+
+	MaxSequenceLength = 1<<(sizeLength*8) - 1
 )
 
-// A Sequence represents a sequence of 2-bit values. The number of
-// values that can be stored in a sequence depends on its
-// length and frequency. In the current implementation, a sequence
-// can hold up to 10080 values, representing 7 days of data with
-// an ingestion frequency of 60 seconds.
+// A Sequence represents a time series of regularly spaced 2-bit values. Following
+// the current implementation, the maximum length of a sequence is 4294967295.
 type Sequence struct {
-	ts    int64
-	count uint16
-	data  []byte
+	ts        int64
+	frequency uint16
+	length    uint32
+	count     uint32
+	data      []byte
 }
 
 // NewSequence creates and intializes a new Sequence using t rounded down to
-// the minute as its reference timestamp.
-func NewSequence(t time.Time) *Sequence {
-	ts := floorInt64(t.Unix(), frequency)
-	data := make([]byte, 6)
-	x := ts
-	i := indexTimestamp
-	for x > 0 {
-		data[i] = byte(x)
-		x >>= 8
-		i++
+// the second as its reference timestamp and f as its frequency in seconds.
+// The sequence frequency will default to 1 if set to 0.
+func NewSequence(t time.Time, f uint16) *Sequence {
+	if f == 0 {
+		f = 1
 	}
-	return &Sequence{ts: ts, data: data}
+	s := Sequence{
+		ts:        t.Unix(),
+		frequency: f,
+		length:    MaxSequenceLength,
+	}
+	return &s
 }
 
-// NewSequenceFromValues creates a new Sequence using t rounded down to the minute
-// as its reference timestamp and values as its initial content. If the length of
-// values is greater than the length of the sequence, the trailing elements will be
-// silently ignored.
-func NewSequenceFromValues(t time.Time, values []uint8) *Sequence {
-	ts := floorInt64(t.Unix(), frequency)
-	data := make([]byte, 6)
-	x := ts
-	i := indexTimestamp
-	for x > 0 {
-		data[i] = byte(x)
-		x >>= 8
-		i++
-	}
-	s := &Sequence{ts: ts, data: data}
+// NewSequenceFromValues creates a new Sequence using t rounded down to the second
+// as its reference timestamp, f as its frequency in seconds and values as its
+// initial content. The sequence frequency will default to 1 if set to 0. If the
+// length of values is greater than the maximum length of a sequence the trailing elements
+// will be silently ignored.
+func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
+	s := NewSequence(t, f)
 	n := len(values)
-	if n > length {
-		n = length
+	if n > MaxSequenceLength {
+		n = MaxSequenceLength
 	}
 	for i := 0; i < n; i++ {
 		s.addOne(values[i])
@@ -78,48 +75,43 @@ func NewSequenceFromValues(t time.Time, values []uint8) *Sequence {
 // NewSequenceFromBytes creates a new Sequence using data, an encoded Sequence, as
 // its inital content.
 func NewSequenceFromBytes(data []byte) (*Sequence, error) {
-	if len(data) < indexData {
+	n := len(data)
+	if n < indexData {
 		return nil, errors.New("cannot decode the sequence")
 	}
-	var ts int64
-	for i := 0; i < 4; i++ {
-		ts |= int64(data[indexTimestamp+i]) << (i * 8)
-	}
-	count := uint16(data[indexCounter]) | uint16(data[indexCounter+1])<<8
-	if count > length {
+	if n > indexData && (n-indexData)%2 != 0 {
 		return nil, errors.New("cannot decode the sequence")
 	}
-	var numberOfValues uint16
-	if len(data) > indexData {
-		if (len(data)-indexData)%2 != 0 {
-			return nil, errors.New("cannot decode the sequence")
-		}
-		for i := indexData; i < len(data); i += 2 {
-			n, _ := decode(data[i], data[i+1])
-			numberOfValues += n
-		}
+	s := Sequence{
+		data: make([]byte, n-indexData),
 	}
-	if count != numberOfValues {
-		return nil, errors.New("cannot decode the sequence")
+	copy(s.data, data[indexData:])
+	i := indexTimestamp
+	s.ts = int64(data[i]) | int64(data[i+1])<<8 | int64(data[i+2])<<16 | int64(data[i+3])<<24
+	i = indexFrequency
+	s.frequency = uint16(data[i]) | uint16(data[i+1])<<8
+	i = indexLength
+	s.length = uint32(data[i]) | uint32(data[i+1])<<8 | uint32(data[i+2])<<16 | uint32(data[i+3])<<24
+	if s.length == 0 {
+		s.length = MaxSequenceLength
 	}
-	clone := make([]byte, len(data))
-	copy(clone, data)
-	return &Sequence{ts: ts, count: count, data: clone}, nil
+	i = indexCounter
+	s.count = uint32(data[i]) | uint32(data[i+1])<<8 | uint32(data[i+2])<<16 | uint32(data[i+3])<<24
+	return &s, nil
 }
 
 // Add adds a value to the sequence, returning an error if outside the
 // time boundaries of the sequence or if an entry already exists.
 func (s *Sequence) Add(x uint8) error {
-	offset := (time.Now().Unix()-s.ts)/frequency + 1
-	if offset < 1 || offset > length {
+	offset := (time.Now().Unix()-s.ts)/int64(s.frequency) + 1
+	if offset < 1 || offset > int64(s.length) {
 		return errors.New("out of bounds")
 	}
-	if uint16(offset) <= s.count {
+	if offset <= int64(s.count) {
 		return errors.New("cannot overwrite value")
 	}
-	delta := uint16(offset) - s.count
-	if delta > 1 {
-		s.addMany(delta-1, FlagUnknown)
+	if delta := offset - int64(s.count); delta > 1 {
+		s.addMany(uint32(delta)-1, FlagUnknown)
 	}
 	s.addOne(x)
 	return nil
@@ -133,63 +125,57 @@ func (s *Sequence) addOne(x uint8) {
 		if v == x && n < maxRepetitions {
 			i := len(s.data) - 2
 			s.data[i], s.data[i+1] = encode(n+1, x)
-			s.inc(1)
+			s.count++
 			return
 		}
 	}
 	b0, b1 := encode(1, x)
 	s.data = append(s.data, b0, b1)
-	s.inc(1)
+	s.count++
 }
 
 // addMany adds a series of values to the sequence, using count as the
 // length of the series and x as the value.
-func (s *Sequence) addMany(count uint16, x uint8) {
+func (s *Sequence) addMany(count uint32, x uint8) {
 	x &= 1<<flagBits - 1
 	c := count
 	if s.count != 0 {
 		n, v := s.last()
 		if v == x && n < maxRepetitions {
 			i := len(s.data) - 2
-			if available := maxRepetitions - n; c > available {
+			if available := uint32(maxRepetitions - n); c > available {
 				s.data[i], s.data[i+1] = encode(maxRepetitions, x)
 				c -= available
 			} else {
-				s.data[i], s.data[i+1] = encode(n+c, x)
-				s.inc(count)
+				s.data[i], s.data[i+1] = encode(n+uint16(c), x)
+				s.count += count
 				return
 			}
 		}
 	}
-	if c > maxRepetitions {
+	if c > uint32(maxRepetitions) {
 		b0, b1 := encode(maxRepetitions, x)
-		for c > maxRepetitions {
+		for c > uint32(maxRepetitions) {
 			s.data = append(s.data, b0, b1)
-			c -= maxRepetitions
+			c -= uint32(maxRepetitions)
 		}
 	}
 	if c > 0 {
-		b0, b1 := encode(c, x)
+		b0, b1 := encode(uint16(c), x)
 		s.data = append(s.data, b0, b1)
 	}
-	s.inc(count)
+	s.count += count
 }
 
-// Values returns a slice of uint8 holding the values stored
-// in the sequence, right filling the slice if needed.
+// Values returns a slice holding the values stored in the sequence.
 func (s *Sequence) Values() []uint8 {
-	data := make([]uint8, length)
+	data := make([]uint8, s.count)
 	index := 0
-	for i := indexData; i < len(s.data); i += 2 {
+	for i := 0; i < len(s.data); i += 2 {
 		n, v := decode(s.data[i], s.data[i+1])
 		for j := 0; j < int(n); j++ {
 			data[index] = v
 			index++
-		}
-	}
-	if index < length {
-		for i := index; i < length; i++ {
-			data[i] = FlagUnknown
 		}
 	}
 	return data
@@ -197,15 +183,23 @@ func (s *Sequence) Values() []uint8 {
 
 // Bytes returns the encoded sequence.
 func (s *Sequence) Bytes() []byte {
-	x := make([]byte, len(s.data))
-	copy(x, s.data)
+	x := make([]byte, indexData+len(s.data))
+	i := indexTimestamp
+	x[i], x[i+1], x[i+2], x[i+3] = byte(s.ts), byte(s.ts>>8), byte(s.ts>>16), byte(s.ts>>24)
+	i = indexFrequency
+	x[i], x[i+1] = byte(s.frequency), byte(s.frequency>>8)
+	if v := s.length; v != MaxSequenceLength {
+		i = indexLength
+		x[i], x[i+1], x[i+2], x[i+3] = byte(v), byte(v>>8), byte(v>>16), byte(v>>24)
+	}
+	if v := s.count; v != 0 {
+		i = indexCounter
+		x[i], x[i+1], x[i+2], x[i+3] = byte(v), byte(v>>8), byte(v>>16), byte(v>>24)
+	}
+	if len(s.data) > 0 {
+		copy(x[indexData:], s.data)
+	}
 	return x
-}
-
-// inc increments the count of values stored in the sequence.
-func (s *Sequence) inc(x uint16) {
-	s.count += x
-	s.data[indexCounter], s.data[indexCounter+1] = byte(s.count), byte(s.count>>8)
 }
 
 // last returns the length and value of the last series in the sequence.
@@ -216,18 +210,20 @@ func (s *Sequence) last() (uint16, uint8) {
 
 // interval returns the closed time interval associated to the sequence.
 func (s *Sequence) interval() interval {
-	return interval{start: s.ts, end: s.ts + (length-1)*frequency}
+	return interval{start: s.ts, end: s.ts + (int64(s.length)-1)*int64(s.frequency)}
 }
 
 // clone returns a copy of s.
 func (s *Sequence) clone() *Sequence {
-	clone := &Sequence{
-		ts:    s.ts,
-		count: s.count,
-		data:  make([]uint8, len(s.data)),
+	clone := Sequence{
+		ts:        s.ts,
+		frequency: s.frequency,
+		length:    s.length,
+		count:     s.count,
+		data:      make([]uint8, len(s.data)),
 	}
 	copy(clone.data, s.data)
-	return clone
+	return &clone
 }
 
 // encode encodes count and value as 2 bytes, keeping the 14 most

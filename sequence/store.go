@@ -19,6 +19,7 @@ type Statement struct {
 	Value               uint8
 	Type                uint8
 	CreateIfNotExists   bool
+	CreateWithFrequency uint16
 	CreateWithTimestamp time.Time
 }
 
@@ -37,9 +38,9 @@ func NewStore() *Store {
 // New creates and adds a new Sequence to the store using key as its identifier. If a
 // Sequence already exists for the identifier it is silently replaced with the new
 // Sequence.
-func (s *Store) New(t time.Time, key string) {
+func (s *Store) New(t time.Time, f uint16, key string) {
 	s.mu.Lock()
-	s.m[key] = NewSequence(t)
+	s.m[key] = NewSequence(t, f)
 	s.mu.Unlock()
 }
 
@@ -164,7 +165,7 @@ func (s *Store) executeUnsafe(statement Statement) error {
 		if !statement.CreateIfNotExists {
 			return errors.New("key does not exist")
 		}
-		x = NewSequence(statement.CreateWithTimestamp)
+		x = NewSequence(statement.CreateWithTimestamp, statement.CreateWithFrequency)
 		s.m[statement.Key] = x
 	}
 	return x.Add(statement.Value)

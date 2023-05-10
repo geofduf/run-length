@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -12,6 +11,10 @@ type QuerySet struct {
 	// Timestamp specifies the unix time associated to
 	// the first element of Values.
 	Timestamp int64
+
+	// Frequency specifies the frequency of the
+	// time series in number of seconds.
+	Frequency int64
 
 	// Values holds the values returned by the query.
 	Values []uint8
@@ -26,15 +29,15 @@ type QueryGroupSet struct {
 
 	// Frequency specifies the frequency of the
 	// time series in number of seconds.
-	Frequency int
+	Frequency int64
 
 	// Sum holds the sum of valid values in
 	// each group.
-	Sum []int
+	Sum []int64
 
 	// Count holds the number of valid values in
 	// in each group.
-	Count []int
+	Count []int64
 }
 
 // Query returns a QuerySet of s using start and end as closed interval filter.
@@ -48,34 +51,36 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 		return QuerySet{}, errors.New("out of bounds")
 	}
 
-	x := int(ceilInt64(r.start-s.ts, frequency)) / frequency
-	y := int((r.end - s.ts)) / frequency
-	data := make([]uint8, y-x+1)
-	srcIndex := 0
-	dstIndex := 0
+	f := int64(s.frequency)
 
-	for p := indexData; p < len(s.data); p += 2 {
+	x := ceilInt64(r.start-s.ts, f) / f
+	y := (r.end - s.ts) / f
+
+	data := make([]uint8, y-x+1)
+	srcIndex, dstIndex := int64(0), int64(0)
+
+	for p := 0; p < len(s.data); p += 2 {
 		n, v := decode(s.data[p], s.data[p+1])
-		count := int(n)
+		count := int64(n)
 
 		if srcIndex+count < x {
 			srcIndex += count
 			continue
 		}
 
-		offset := 0
+		offset := int64(0)
 		if dstIndex == 0 {
 			offset = x - srcIndex
 		}
 
 		if y < srcIndex+count {
-			for i := 0; i <= y-srcIndex-offset; i++ {
+			for i := int64(0); i <= y-srcIndex-offset; i++ {
 				data[dstIndex] = v
 				dstIndex++
 			}
 			break
 		} else {
-			for i := 0; i < count-offset; i++ {
+			for i := int64(0); i < count-offset; i++ {
 				data[dstIndex] = v
 				dstIndex++
 			}
@@ -84,11 +89,11 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 		srcIndex += count
 	}
 
-	for i := dstIndex; i < len(data); i++ {
+	for i := dstIndex; i < int64(len(data)); i++ {
 		data[i] = FlagUnknown
 	}
 
-	return QuerySet{Values: data, Timestamp: ceilInt64(r.start, frequency)}, nil
+	return QuerySet{Values: data, Frequency: f, Timestamp: s.ts + x*f}, nil
 }
 
 // QueryGroup returns a QueryGroupSet of s using start and end as closed interval filter and
@@ -101,9 +106,11 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 		return QueryGroupSet{}, errors.New("invalid time filter")
 	}
 
-	aggregation := int(d.Seconds()) / frequency
+	f := int64(s.frequency)
 
-	if aggregation < 2 || aggregation > length || length%aggregation != 0 {
+	aggregation := int64(d.Seconds()) / f
+
+	if aggregation < 2 {
 		return QueryGroupSet{}, errors.New("invalid grouping interval")
 	}
 
@@ -112,24 +119,24 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 		return QueryGroupSet{}, errors.New("out of bounds")
 	}
 
-	x := int(ceilInt64(r.start-s.ts, frequency)) / frequency
-	y := int(r.end-s.ts) / frequency
+	x := ceilInt64(r.start-s.ts, f) / f
+	y := (r.end - s.ts) / f
 
 	numberOfValues := y/aggregation - x/aggregation + 1
 
 	qs := QueryGroupSet{
-		Timestamp: s.ts + floorInt64(int64(x*frequency), int64(frequency*aggregation)),
-		Frequency: frequency * aggregation,
-		Sum:       make([]int, numberOfValues),
-		Count:     make([]int, numberOfValues),
+		Timestamp: s.ts + floorInt64(x*f, f*aggregation),
+		Frequency: f * aggregation,
+		Sum:       make([]int64, numberOfValues),
+		Count:     make([]int64, numberOfValues),
 	}
 
-	src := 0
+	src := int64(0)
 	shift := (x % aggregation) - x
 
 	for p := indexData; p < len(s.data); p += 2 {
 		n, v := decode(s.data[p], s.data[p+1])
-		next := src + int(n)
+		next := src + int64(n)
 
 		if x >= next || v == FlagUnknown {
 			src = next
@@ -171,55 +178,6 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 	}
 
 	return qs, nil
-}
-
-// Query returns a QuerySet of interval [start, end] built by querying each element
-// of a slice of encoded sequences using start and end as closed interval filter.
-func Query(encodedSequences [][]byte, start, end time.Time) (QuerySet, error) {
-	if start.After(end) {
-		return QuerySet{}, errors.New("invalid arguments")
-	}
-	sequences := make([]*Sequence, len(encodedSequences))
-	for i, v := range encodedSequences {
-		s, err := NewSequenceFromBytes(v)
-		if err != nil {
-			return QuerySet{}, fmt.Errorf("%s, at index %d", err, i)
-		}
-		sequences[i] = s
-	}
-	return query(sequences, start, end)
-}
-
-// query returns a QuerySet of interval [start, end] built by querying each element
-// of sequences using start and end as closed interval filter.
-func query(sequences []*Sequence, start, end time.Time) (QuerySet, error) {
-	if start.After(end) {
-		return QuerySet{}, errors.New("invalid arguments")
-	}
-	x := ceilInt64(start.Unix(), frequency)
-	y := floorInt64(end.Unix(), frequency)
-	data := newSliceOfValues(int(y/frequency-x/frequency+1), FlagUnknown)
-	for _, s := range sequences {
-		iv := s.interval()
-		if x <= iv.start && y >= iv.end {
-			values := s.Values()
-			m := int((s.ts - x) / frequency)
-			n := m + len(values)
-			copy(data[m:n], values)
-			continue
-		}
-		qs, err := s.Query(start, end)
-		if err != nil {
-			continue
-		}
-		m := 0
-		if s.ts > x {
-			m = int((s.ts - x) / frequency)
-		}
-		n := m + len(qs.Values)
-		copy(data[m:n], qs.Values)
-	}
-	return QuerySet{Timestamp: x, Values: data}, nil
 }
 
 // ceilInt64 returns the least integer value greater than or

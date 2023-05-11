@@ -7,7 +7,7 @@ import (
 )
 
 func TestSequenceQuery(t *testing.T) {
-	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
 	s := NewSequenceFromValues(x, testSequenceFrequency, testValues)
 	f := int64(s.frequency)
 	tests := []struct {
@@ -40,11 +40,64 @@ func TestSequenceQuery(t *testing.T) {
 	}
 }
 
+func TestSequenceQueryGroup(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
+	s := NewSequenceFromValues(x, testSequenceFrequency, testValues)
+	f := int64(testSequenceFrequency)
+	tests := []struct {
+		id       int
+		start    time.Time
+		end      time.Time
+		interval time.Duration
+		want     QueryGroupSet
+	}{
+		{
+			1,
+			shift(s, -5, -1),
+			shift(s, 25, -1),
+			time.Duration(f*5) * time.Second,
+			QueryGroupSet{s.ts, f * 5, []int64{5, 0, 5, 0, 0}, []int64{5, 5, 5, 1, 0}},
+		},
+		{
+			2,
+			shift(s, 3, -1),
+			shift(s, 12, 1),
+			time.Duration(f*5) * time.Second,
+			QueryGroupSet{s.ts, f * 5, []int64{2, 0, 3}, []int64{2, 5, 3}},
+		},
+		{
+			3,
+			shift(s, 5, -1),
+			shift(s, 12, 1),
+			time.Duration(f*3) * time.Second,
+			QueryGroupSet{s.ts + f*3, f * 3, []int64{0, 0, 2, 1}, []int64{1, 3, 3, 1}},
+		},
+		{
+			4,
+			shift(s, -5, -1),
+			shift(s, 80, -1),
+			time.Duration(f*25) * time.Second,
+			QueryGroupSet{s.ts, f * 25, []int64{10, 0, 0, 0}, []int64{16, 0, 0, 0}},
+		},
+	}
+	for _, tt := range tests {
+		prefix := fmt.Sprintf("test %d (%s, %s, %d)", tt.id, tt.start, tt.end, int(tt.interval.Seconds()))
+		got, err := s.QueryGroup(tt.start, tt.end, tt.interval)
+		if err != nil {
+			t.Fatalf("%s: got error %s, want error nil", prefix, err)
+		}
+		if !assertQueryGroupSetEqual(got, tt.want) {
+			t.Fatalf("%s:\ngot  %+v\nwant %+v", prefix, got, tt.want)
+		}
+	}
+
+}
+
 func shift(s *Sequence, steps, seconds int) time.Time {
 	return time.Unix(s.ts, 0).Add(time.Duration(steps*int(s.frequency)+seconds) * time.Second)
 }
 
-func assertValuesEqual(x, y []uint8) bool {
+func assertValuesEqual[T uint8 | int64](x, y []T) bool {
 	if len(x) != len(y) {
 		return false
 	}
@@ -54,4 +107,11 @@ func assertValuesEqual(x, y []uint8) bool {
 		}
 	}
 	return true
+}
+
+func assertQueryGroupSetEqual(x, y QueryGroupSet) bool {
+	if x.Timestamp != y.Timestamp || x.Frequency != y.Frequency {
+		return false
+	}
+	return assertValuesEqual(x.Sum, y.Sum) && assertValuesEqual(x.Count, y.Count)
 }

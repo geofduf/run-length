@@ -134,7 +134,7 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 	src := int64(0)
 	shift := (x % aggregation) - x
 
-	for p := indexData; p < len(s.data); p += 2 {
+	for p := 0; p < len(s.data); p += 2 {
 		n, v := decode(s.data[p], s.data[p+1])
 		next := src + int64(n)
 

@@ -60,6 +60,7 @@ func TestStoreKeys(t *testing.T) {
 }
 
 func TestStoreExecuteUnsafe(t *testing.T) {
+	x := time.Now()
 	type result struct {
 		err    bool
 		length int
@@ -67,21 +68,23 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 	tests := []struct {
 		id                  int
 		key                 string
+		timestamp           time.Time
 		value               uint8
 		statementType       uint8
 		createIfNotExists   bool
 		createWithTimestamp time.Time
 		want                result
 	}{
-		{1, "k1", FlagActive, StatementTypeAddValue, false, time.Now(), result{true, 0}},
-		{2, "k1", FlagActive, StatementTypeAddValue, true, time.Now(), result{false, 1}},
-		{3, "k1", FlagActive, StatementTypeAddValue, true, time.Now().Add(5 * time.Minute), result{true, 1}},
-		{4, "k1", FlagActive, 2, true, time.Now(), result{true, 0}},
+		{1, "k1", x, FlagActive, StatementTypeAddValue, false, x, result{true, 0}},
+		{2, "k1", x, FlagActive, StatementTypeAddValue, true, x, result{false, 1}},
+		{3, "k1", x, FlagActive, StatementTypeAddValue, true, x.Add(5 * time.Minute), result{true, 1}},
+		{4, "k1", x, FlagActive, 2, true, x, result{true, 0}},
 	}
 	for _, tt := range tests {
 		store := NewStore()
 		statement := Statement{
 			Key:                 tt.key,
+			Timestamp:           tt.timestamp,
 			Value:               tt.value,
 			Type:                tt.statementType,
 			CreateIfNotExists:   tt.createIfNotExists,

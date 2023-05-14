@@ -102,8 +102,8 @@ func NewSequenceFromBytes(data []byte) (*Sequence, error) {
 
 // Add adds a value to the sequence, returning an error if outside the
 // time boundaries of the sequence or if an entry already exists.
-func (s *Sequence) Add(x uint8) error {
-	offset := (time.Now().Unix()-s.ts)/int64(s.frequency) + 1
+func (s *Sequence) Add(t time.Time, x uint8) error {
+	offset := (t.Unix()-s.ts)/int64(s.frequency) + 1
 	if offset < 1 || offset > int64(s.length) {
 		return errors.New("out of bounds")
 	}

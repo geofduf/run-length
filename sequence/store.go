@@ -16,6 +16,7 @@ const (
 // A Statement represents an operation to perform on a store.
 type Statement struct {
 	Key                 string
+	Timestamp           time.Time
 	Value               uint8
 	Type                uint8
 	CreateIfNotExists   bool
@@ -168,5 +169,5 @@ func (s *Store) executeUnsafe(statement Statement) error {
 		x = NewSequence(statement.CreateWithTimestamp, statement.CreateWithFrequency)
 		s.m[statement.Key] = x
 	}
-	return x.Add(statement.Value)
+	return x.Add(statement.Timestamp, statement.Value)
 }

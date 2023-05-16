@@ -56,28 +56,28 @@ func TestSequenceQueryGroup(t *testing.T) {
 			shift(s, -5, -1),
 			shift(s, 25, -1),
 			time.Duration(f*5) * time.Second,
-			QueryGroupSet{s.ts, f * 5, []int64{5, 0, 5, 0, 0}, []int64{5, 5, 5, 1, 0}},
+			QueryGroupSet{shift(s, -5, -1).Unix(), f * 5, []int64{0, 5, 0, 5, 0, 0, 0}, []int64{0, 5, 5, 5, 1, 0, 0}},
 		},
 		{
 			2,
 			shift(s, 3, -1),
 			shift(s, 12, 1),
 			time.Duration(f*5) * time.Second,
-			QueryGroupSet{s.ts, f * 5, []int64{2, 0, 3}, []int64{2, 5, 3}},
+			QueryGroupSet{shift(s, 3, -1).Unix(), f * 5, []int64{2, 3}, []int64{5, 5}},
 		},
 		{
 			3,
 			shift(s, 5, -1),
 			shift(s, 12, 1),
 			time.Duration(f*3) * time.Second,
-			QueryGroupSet{s.ts + f*3, f * 3, []int64{0, 0, 2, 1}, []int64{1, 3, 3, 1}},
+			QueryGroupSet{shift(s, 5, -1).Unix(), f * 3, []int64{0, 1, 2}, []int64{3, 3, 2}},
 		},
 		{
 			4,
-			shift(s, -5, -1),
+			shift(s, -15, -1),
 			shift(s, 80, -1),
 			time.Duration(f*25) * time.Second,
-			QueryGroupSet{s.ts, f * 25, []int64{10, 0, 0, 0}, []int64{16, 0, 0, 0}},
+			QueryGroupSet{shift(s, -15, -1).Unix(), f * 25, []int64{5, 5, 0, 0}, []int64{10, 6, 0, 0}},
 		},
 	}
 	for _, tt := range tests {

@@ -96,10 +96,10 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 	return QuerySet{Values: data, Frequency: f, Timestamp: s.ts + x*f}, nil
 }
 
-// QueryGroup returns a QueryGroupSet of s using start and end as closed interval filter and
-// d as grouping interval. The grouping interval is silently floored to the second.
-// Following the curent implementation it must be greater or equal to 120 seconds and an
-// exact divisor of of 10080 seconds.
+// QueryGroup executes a query on s using start, end as closed interval filter
+// and d as grouping interval. Groups are aligned on start and the grouping interval
+// is silently floored to the frequency of s. It returns a QueryGroupSet covering
+// all groups between start and end.
 func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroupSet, error) {
 	// TODO: review + clean method
 	if start.After(end) {
@@ -110,7 +110,7 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 
 	aggregation := int64(d.Seconds()) / f
 
-	if aggregation < 2 {
+	if aggregation < 1 {
 		return QueryGroupSet{}, errors.New("invalid grouping interval")
 	}
 
@@ -122,17 +122,22 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 	x := ceilInt64(r.start-s.ts, f) / f
 	y := (r.end - s.ts) / f
 
-	numberOfValues := y/aggregation - x/aggregation + 1
+	ts := start.Unix()
+
+	numberOfValues := (end.Unix()-ts)/f/aggregation + 1
 
 	qs := QueryGroupSet{
-		Timestamp: s.ts + floorInt64(x*f, f*aggregation),
+		Timestamp: ts,
 		Frequency: f * aggregation,
 		Sum:       make([]int64, numberOfValues),
 		Count:     make([]int64, numberOfValues),
 	}
 
 	src := int64(0)
-	shift := (x % aggregation) - x
+	shift := int64(0)
+	if ts < s.ts {
+		shift = (s.ts - ts) / f
+	}
 
 	for p := 0; p < len(s.data); p += 2 {
 		n, v := decode(s.data[p], s.data[p+1])
@@ -155,10 +160,10 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 		}
 
 		for src < target {
-			dst := (shift + src) / aggregation
+			dst := (shift + src - x) / aggregation
 			n := aggregation
 			if first {
-				n -= src % aggregation
+				n -= (shift + src - x) % aggregation
 				first = false
 			}
 			if src+n > target {

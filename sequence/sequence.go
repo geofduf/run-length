@@ -202,6 +202,21 @@ func (s *Sequence) Bytes() []byte {
 	return x
 }
 
+// Timestamp returns the sequence reference timestamp as a Unix time.
+func (s *Sequence) Timestamp() int64 {
+	return s.ts
+}
+
+// Frequency returns the sequence frequency in seconds.
+func (s *Sequence) Frequency() uint16 {
+	return s.frequency
+}
+
+// Length returns the sequence length.
+func (s *Sequence) Length() uint32 {
+	return s.length
+}
+
 // last returns the length and value of the last series in the sequence.
 func (s *Sequence) last() (uint16, uint8) {
 	i := len(s.data) - 2

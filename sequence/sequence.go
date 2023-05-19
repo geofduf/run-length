@@ -167,8 +167,16 @@ func (s *Sequence) addMany(count uint32, x uint8) {
 	s.count += count
 }
 
-// Values returns a slice holding the values stored in the sequence.
-func (s *Sequence) Values() []uint8 {
+// Values returns raw values stored in the sequence using start and end as
+// closed interval filter. The second return value is the Unix time associated to
+// the first element of the slice. The method returns an error if the interval filter
+// and the sequence don't overlap.
+func (s *Sequence) Values(start, end time.Time) ([]uint8, int64, error) {
+	return s.queryValues(start, end)
+}
+
+// All returns the raw values stored in the sequence.
+func (s *Sequence) All() []uint8 {
 	data := make([]uint8, s.count)
 	index := 0
 	for i := 0; i < len(s.data); i += 2 {

@@ -25,7 +25,7 @@ const (
 // serialize is a convenience function that returns a JSON encoding of the time series
 // using layout as time layout, loc as time location, n as precision level for
 // float values and flag to define which values to include in the serialized output.
-func serialize(q QueryGroupSet, layout string, loc *time.Location, n int, flag int) []byte {
+func serialize(q QuerySet, layout string, loc *time.Location, n int, flag int) []byte {
 	if len(q.Count) == 0 {
 		return []byte("[]")
 	}
@@ -81,6 +81,6 @@ func serialize(q QueryGroupSet, layout string, loc *time.Location, n int, flag i
 // Serialize is a convenience method that returns a JSON encoding of the time series
 // using layout as time layout, loc as time location, n as precision level for
 // float values and flag to define which values to include in the serialized output.
-func (q QueryGroupSet) Serialize(layout string, loc *time.Location, n int, flag int) []byte {
+func (q QuerySet) Serialize(layout string, loc *time.Location, n int, flag int) []byte {
 	return serialize(q, layout, loc, n, flag)
 }

@@ -5,24 +5,9 @@ import (
 	"time"
 )
 
-// A QuerySet represents a set of values obtained by performing a query
-// against one or several sequences.
-type QuerySet struct {
-	// Timestamp specifies the unix time associated to
-	// the first element of Values.
-	Timestamp int64
-
-	// Frequency specifies the frequency of the
-	// time series in number of seconds.
-	Frequency int64
-
-	// Values holds the values returned by the query.
-	Values []uint8
-}
-
-// A QueryGroupSet represents a time series obtained by applying a set of
+// A QuerySet represents a time series obtained by applying a set of
 // aggregate functions on values grouped in terms of time.
-type QueryGroupSet struct {
+type QuerySet struct {
 	// Timestamp specifies the unix time associated to
 	// the first element of the time series.
 	Timestamp int64
@@ -40,15 +25,18 @@ type QueryGroupSet struct {
 	Count []int64
 }
 
-// Query returns a QuerySet of s using start and end as closed interval filter.
-func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
+// queryValues returns raw values stored in the sequence using start and end as
+// closed interval filter. The second return value is the Unix time associated to
+// the first element of the slice. The method returns an error if the interval filter
+// and the sequence don't overlap.
+func (s *Sequence) queryValues(start, end time.Time) ([]uint8, int64, error) {
 	if start.After(end) {
-		return QuerySet{}, errors.New("invalid arguments")
+		return []uint8{}, 0, errors.New("invalid arguments")
 	}
 
 	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
 	if !ok {
-		return QuerySet{}, errors.New("out of bounds")
+		return []uint8{}, 0, errors.New("out of bounds")
 	}
 
 	f := int64(s.frequency)
@@ -93,17 +81,17 @@ func (s *Sequence) Query(start, end time.Time) (QuerySet, error) {
 		data[i] = FlagUnknown
 	}
 
-	return QuerySet{Values: data, Frequency: f, Timestamp: s.ts + x*f}, nil
+	return data, s.ts + x*f, nil
 }
 
-// QueryGroup executes a query on s using start, end as closed interval filter
-// and d as grouping interval. Groups are aligned on start and the grouping interval
-// is silently floored to the frequency of s. It returns a QueryGroupSet covering
+// Query executes a query on s using start, end as closed interval filter
+// and d as grouping interval. The grouping interval is silently floored to
+// the frequency of s. Groups are aligned on start. It returns a QuerySet covering
 // all groups between start and end.
-func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroupSet, error) {
+func (s *Sequence) Query(start, end time.Time, d time.Duration) (QuerySet, error) {
 	// TODO: review + clean method
 	if start.After(end) {
-		return QueryGroupSet{}, errors.New("invalid time filter")
+		return QuerySet{}, errors.New("invalid time filter")
 	}
 
 	f := int64(s.frequency)
@@ -111,12 +99,12 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 	aggregation := int64(d.Seconds()) / f
 
 	if aggregation < 1 {
-		return QueryGroupSet{}, errors.New("invalid grouping interval")
+		return QuerySet{}, errors.New("invalid grouping interval")
 	}
 
 	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
 	if !ok {
-		return QueryGroupSet{}, errors.New("out of bounds")
+		return QuerySet{}, errors.New("out of bounds")
 	}
 
 	x := ceilInt64(r.start-s.ts, f) / f
@@ -126,7 +114,7 @@ func (s *Sequence) QueryGroup(start, end time.Time, d time.Duration) (QueryGroup
 
 	numberOfValues := (end.Unix()-ts)/f/aggregation + 1
 
-	qs := QueryGroupSet{
+	qs := QuerySet{
 		Timestamp: ts,
 		Frequency: f * aggregation,
 		Sum:       make([]int64, numberOfValues),

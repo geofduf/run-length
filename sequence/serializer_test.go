@@ -9,7 +9,7 @@ import (
 
 func TestSerialize(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
-	q := QueryGroupSet{x.Unix(), 300, []int64{5, 0, 1}, []int64{5, 0, 4}}
+	q := QuerySet{x.Unix(), 300, []int64{5, 0, 1}, []int64{5, 0, 4}}
 	tests := []struct {
 		id        int
 		layout    string

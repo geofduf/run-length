@@ -54,7 +54,7 @@ func (s *Store) Add(key string, x *Sequence) {
 	s.mu.Unlock()
 }
 
-// Get returns a copy of the Sequence associated to key. The second value returned is
+// Get returns a copy of the Sequence associated to key. The second return value is
 // true if the key exists in the store and false if not.
 func (s *Store) Get(key string) (*Sequence, bool) {
 	s.mu.RLock()
@@ -76,7 +76,7 @@ func (s *Store) Execute(statement Statement) error {
 }
 
 // Batch executes multiple statements against the store. Individual errors are non
-// blocking, but if one or more statements could not be executed or induced an error,
+// blocking but if one or more statements could not be executed or induced an error
 // the method will return a global error and a slice holding information about each
 // individual error. It currently only supports statements of type StatementTypeAddValue.
 func (s *Store) Batch(statements []Statement) (error, []string) {

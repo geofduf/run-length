@@ -21,14 +21,17 @@ const (
 	maxRepetitions = uint16(1<<(16-flagBits) - 1)
 )
 
+// Internal representation of sequence values.
 const (
-	FlagInactive uint8 = iota // 0b00
-	FlagActive                // 0b01
-	FlagUnknown               // 0b10
-	FlagNotUsed               // 0b11
-
-	MaxSequenceLength = 1<<(sizeLength*8) - 1
+	StateInactive uint8 = iota // 0b00
+	StateActive                // 0b01
+	StateUnknown               // 0b10
+	StateNotUsed               // 0b11
 )
+
+// MaxSequenceLength is the maximum number of values that can be stored
+// in a sequence.
+const MaxSequenceLength = 1<<(sizeLength*8) - 1 // 4294967295
 
 // A Sequence represents a time series of regularly spaced 2-bit values. Following
 // the current implementation, the maximum length of a sequence is 4294967295.
@@ -58,8 +61,8 @@ func NewSequence(t time.Time, f uint16) *Sequence {
 // NewSequenceFromValues creates a new Sequence using t rounded down to the second
 // as its reference timestamp, f as its frequency in seconds and values as its
 // initial content. The sequence frequency will default to 1 if set to 0. If the
-// length of values is greater than the maximum length of a sequence the trailing elements
-// will be silently ignored.
+// length of values is greater than the maximum length of the sequence the trailing
+// elements will be silently ignored.
 func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
 	s := NewSequence(t, f)
 	n := len(values)
@@ -111,7 +114,7 @@ func (s *Sequence) Add(t time.Time, x uint8) error {
 		return errors.New("cannot overwrite value")
 	}
 	if delta := offset - int64(s.count); delta > 1 {
-		s.addMany(uint32(delta)-1, FlagUnknown)
+		s.addMany(uint32(delta)-1, StateUnknown)
 	}
 	s.addOne(x)
 	return nil

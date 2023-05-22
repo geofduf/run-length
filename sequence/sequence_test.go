@@ -16,7 +16,7 @@ var (
 func TestEncode(t *testing.T) {
 	got := make([]byte, 2)
 	want := []byte{0b101, 0b10}
-	got[0], got[1] = encode(129, FlagActive)
+	got[0], got[1] = encode(129, StateActive)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("got %08b, want %08b\n", got, want)
 	}
@@ -27,7 +27,7 @@ func TestDecode(t *testing.T) {
 		count uint16
 		flag  uint8
 	}
-	want := result{129, FlagActive}
+	want := result{129, StateActive}
 	var got result
 	got.count, got.flag = decode(0b101, 0b10)
 	if got != want {
@@ -94,7 +94,7 @@ func TestLast(t *testing.T) {
 		count uint16
 		flag  uint8
 	}
-	want := result{5, FlagInactive}
+	want := result{5, StateInactive}
 	var got result
 	got.count, got.flag = s.last()
 	if got != want {
@@ -110,10 +110,10 @@ func TestAddOne(t *testing.T) {
 		value uint8
 		want  []byte
 	}{
-		{1, FlagInactive, []byte{0x4, 0x0}},
-		{2, FlagActive, []byte{0x4, 0x0, 0x5, 0x0}},
-		{3, FlagActive, []byte{0x4, 0x0, 0x9, 0x0}},
-		{4, FlagUnknown, []byte{0x4, 0x0, 0x9, 0x0, 0x6, 0x0}},
+		{1, StateInactive, []byte{0x4, 0x0}},
+		{2, StateActive, []byte{0x4, 0x0, 0x5, 0x0}},
+		{3, StateActive, []byte{0x4, 0x0, 0x9, 0x0}},
+		{4, StateUnknown, []byte{0x4, 0x0, 0x9, 0x0, 0x6, 0x0}},
 	}
 	for i, tt := range tests {
 		s.addOne(tt.value)
@@ -135,9 +135,9 @@ func TestAddMany(t *testing.T) {
 		value uint8
 		want  []byte
 	}{
-		{1, 129, FlagInactive, []byte{0x4, 0x2}},
-		{2, 1919, FlagActive, []byte{0x4, 0x2, 0xfd, 0x1d}},
-		{3, 32767, FlagActive, []byte{0x4, 0x2, 0xfd, 0xff, 0xfd, 0xff, 0x1, 0x1e}},
+		{1, 129, StateInactive, []byte{0x4, 0x2}},
+		{2, 1919, StateActive, []byte{0x4, 0x2, 0xfd, 0x1d}},
+		{3, 32767, StateActive, []byte{0x4, 0x2, 0xfd, 0xff, 0xfd, 0xff, 0x1, 0x1e}},
 	}
 	var n uint32
 	for _, tt := range tests {

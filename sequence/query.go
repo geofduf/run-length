@@ -78,7 +78,7 @@ func (s *Sequence) queryValues(start, end time.Time) ([]uint8, int64, error) {
 	}
 
 	for i := dstIndex; i < int64(len(data)); i++ {
-		data[i] = FlagUnknown
+		data[i] = StateUnknown
 	}
 
 	return data, s.ts + x*f, nil
@@ -131,7 +131,7 @@ func (s *Sequence) Query(start, end time.Time, d time.Duration) (QuerySet, error
 		n, v := decode(s.data[p], s.data[p+1])
 		next := src + int64(n)
 
-		if x >= next || v == FlagUnknown {
+		if x >= next || v == StateUnknown {
 			src = next
 			continue
 		}

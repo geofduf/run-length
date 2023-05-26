@@ -66,11 +66,30 @@ func NewSequence(t time.Time, f uint16) *Sequence {
 func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
 	s := NewSequence(t, f)
 	n := len(values)
+	if n == 0 {
+		return s
+	}
 	if n > MaxSequenceLength {
 		n = MaxSequenceLength
 	}
-	for i := 0; i < n; i++ {
-		s.addOne(values[i])
+	count := uint32(1)
+	x := values[0]
+	for i := 1; i < n; i++ {
+		if values[i] != x {
+			if count == 1 {
+				s.addOne(x)
+			} else {
+				s.addMany(count, x)
+			}
+			count = 0
+			x = values[i]
+		}
+		count++
+	}
+	if count == 1 {
+		s.addOne(x)
+	} else {
+		s.addMany(count, x)
 	}
 	return s
 }

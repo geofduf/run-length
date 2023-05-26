@@ -18,6 +18,7 @@ const (
 	indexData      = indexCounter + sizeCounter
 
 	flagBits       = 2
+	flagBitsMask   = 1<<flagBits - 1
 	maxRepetitions = uint16(1<<(16-flagBits) - 1)
 )
 
@@ -31,10 +32,10 @@ const (
 
 // MaxSequenceLength is the maximum number of values that can be stored
 // in a sequence.
-const MaxSequenceLength = 1<<(sizeLength*8) - 1 // 4294967295
+const MaxSequenceLength = 4294967295
 
-// A Sequence represents a time series of regularly spaced 2-bit values. Following
-// the current implementation, the maximum length of a sequence is 4294967295.
+// A Sequence represents a time series of regularly spaced 2-bit values.
+// The maximum length of a sequence is 4294967295.
 type Sequence struct {
 	ts        int64
 	frequency uint16
@@ -141,7 +142,7 @@ func (s *Sequence) Add(t time.Time, x uint8) error {
 
 // addOne adds a value to the sequence.
 func (s *Sequence) addOne(x uint8) {
-	x &= 1<<flagBits - 1
+	x &= flagBitsMask
 	if s.count != 0 {
 		n, v := s.last()
 		if v == x && n < maxRepetitions {
@@ -159,7 +160,7 @@ func (s *Sequence) addOne(x uint8) {
 // addMany adds a series of values to the sequence, using count as the
 // length of the series and x as the value.
 func (s *Sequence) addMany(count uint32, x uint8) {
-	x &= 1<<flagBits - 1
+	x &= flagBitsMask
 	c := count
 	if s.count != 0 {
 		n, v := s.last()
@@ -280,5 +281,5 @@ func encode(count uint16, value uint8) (byte, byte) {
 
 // decode decodes values encoded using the encode function.
 func decode(x, y byte) (uint16, uint8) {
-	return uint16(x>>flagBits) | uint16(y)<<(8-flagBits), x & (1<<flagBits - 1)
+	return uint16(x>>flagBits) | uint16(y)<<(8-flagBits), x & flagBitsMask
 }

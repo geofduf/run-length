@@ -75,9 +75,9 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 		createWithTimestamp time.Time
 		want                result
 	}{
-		{1, "k1", x, StateActive, StatementTypeAddValue, false, x, result{true, 0}},
-		{2, "k1", x, StateActive, StatementTypeAddValue, true, x, result{false, 1}},
-		{3, "k1", x, StateActive, StatementTypeAddValue, true, x.Add(5 * time.Minute), result{true, 1}},
+		{1, "k1", x, StateActive, StatementAddValue, false, x, result{true, 0}},
+		{2, "k1", x, StateActive, StatementAddValue, true, x, result{false, 1}},
+		{3, "k1", x, StateActive, StatementAddValue, true, x.Add(5 * time.Minute), result{true, 1}},
 		{4, "k1", x, StateActive, 2, true, x, result{true, 0}},
 	}
 	for _, tt := range tests {

@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
+// Statement types.
 const (
-	StatementTypeAddValue uint8 = iota
+	StatementAddValue uint8 = iota
 )
 
 // A Statement represents an operation to perform on a store.
@@ -68,7 +69,7 @@ func (s *Store) Get(key string) (*Sequence, bool) {
 
 // Execute executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
-// It currently only supports statements of type StatementTypeAddValue.
+// It currently only supports statements of type StatementAddValue.
 func (s *Store) Execute(statement Statement) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -78,7 +79,7 @@ func (s *Store) Execute(statement Statement) error {
 // Batch executes multiple statements against the store. Individual errors are non
 // blocking but if one or more statements could not be executed or induced an error
 // the method will return a global error and a slice holding information about each
-// individual error. It currently only supports statements of type StatementTypeAddValue.
+// individual error. It currently only supports statements of type StatementAddValue.
 func (s *Store) Batch(statements []Statement) (error, []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -154,11 +155,11 @@ func (s *Store) Load(data []byte) error {
 
 // executeUnsafe executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
-// It currently only supports statements of type StatementTypeAddValue. This method
+// It currently only supports statements of type StatementAddValue. This method
 // is not goroutine-safe. The caller is responsible for properly acquiring / releasing
 // the lock on the store.
 func (s *Store) executeUnsafe(statement Statement) error {
-	if statement.Type != StatementTypeAddValue {
+	if statement.Type != StatementAddValue {
 		return errors.New("unknown statement type")
 	}
 	x, ok := s.m[statement.Key]

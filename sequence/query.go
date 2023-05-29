@@ -47,8 +47,11 @@ func (s *Sequence) queryValues(start, end time.Time) ([]uint8, int64, error) {
 	data := make([]uint8, y-x+1)
 	srcIndex, dstIndex := int64(0), int64(0)
 
-	for p := 0; p < len(s.data); p += 2 {
-		n, v := decode(s.data[p], s.data[p+1])
+	p := 0
+	for p < len(s.data) {
+		n, v, bytesRead := s.next(p)
+		p += bytesRead
+
 		count := int64(n)
 
 		if srcIndex+count < x {
@@ -127,8 +130,11 @@ func (s *Sequence) Query(start, end time.Time, d time.Duration) (QuerySet, error
 		shift = (s.ts - ts) / f
 	}
 
-	for p := 0; p < len(s.data); p += 2 {
-		n, v := decode(s.data[p], s.data[p+1])
+	p := 0
+	for p < len(s.data) {
+		n, v, bytesRead := s.next(p)
+		p += bytesRead
+
 		next := src + int64(n)
 
 		if x >= next || v == StateUnknown {

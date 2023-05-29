@@ -17,9 +17,8 @@ const (
 	indexCounter   = indexLength + sizeLength
 	indexData      = indexCounter + sizeCounter
 
-	flagBits       = 2
-	flagBitsMask   = 1<<flagBits - 1
-	maxRepetitions = uint16(1<<(16-flagBits) - 1)
+	flagBits     = 2
+	flagBitsMask = 1<<flagBits - 1
 )
 
 // Internal representation of sequence values.
@@ -77,21 +76,13 @@ func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
 	x := values[0]
 	for i := 1; i < n; i++ {
 		if values[i] != x {
-			if count == 1 {
-				s.addOne(x)
-			} else {
-				s.addMany(count, x)
-			}
+			s.addSeries(count, x)
 			count = 0
 			x = values[i]
 		}
 		count++
 	}
-	if count == 1 {
-		s.addOne(x)
-	} else {
-		s.addMany(count, x)
-	}
+	s.addSeries(count, x)
 	return s
 }
 
@@ -100,9 +91,6 @@ func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
 func NewSequenceFromBytes(data []byte) (*Sequence, error) {
 	n := len(data)
 	if n < indexData {
-		return nil, errors.New("cannot decode the sequence")
-	}
-	if n > indexData && (n-indexData)%2 != 0 {
 		return nil, errors.New("cannot decode the sequence")
 	}
 	s := Sequence{
@@ -134,58 +122,36 @@ func (s *Sequence) Add(t time.Time, x uint8) error {
 		return errors.New("cannot overwrite value")
 	}
 	if delta := offset - int64(s.count); delta > 1 {
-		s.addMany(uint32(delta)-1, StateUnknown)
+		s.addSeries(uint32(delta)-1, StateUnknown)
 	}
-	s.addOne(x)
+	s.addSeries(1, x)
 	return nil
 }
 
-// addOne adds a value to the sequence.
-func (s *Sequence) addOne(x uint8) {
+// addSeries adds a series of values to the sequence, using count as the
+// length of the series and x as the value.
+func (s *Sequence) addSeries(count uint32, x uint8) {
 	x &= flagBitsMask
 	if s.count != 0 {
-		n, v := s.last()
-		if v == x && n < maxRepetitions {
-			i := len(s.data) - 2
-			s.data[i], s.data[i+1] = encode(n+1, x)
-			s.count++
+		c, v, n := s.last()
+		if v == x {
+			buf := encode(c+count, x)
+			index := len(s.data) - n
+			for i := 0; i < len(buf); i++ {
+				if i >= n {
+					s.data = append(s.data, buf[i:]...)
+					break
+				}
+				s.data[index+i] = buf[i]
+			}
+			s.count += count
 			return
 		}
 	}
-	b0, b1 := encode(1, x)
-	s.data = append(s.data, b0, b1)
-	s.count++
-}
-
-// addMany adds a series of values to the sequence, using count as the
-// length of the series and x as the value.
-func (s *Sequence) addMany(count uint32, x uint8) {
-	x &= flagBitsMask
-	c := count
-	if s.count != 0 {
-		n, v := s.last()
-		if v == x && n < maxRepetitions {
-			i := len(s.data) - 2
-			if available := uint32(maxRepetitions - n); c > available {
-				s.data[i], s.data[i+1] = encode(maxRepetitions, x)
-				c -= available
-			} else {
-				s.data[i], s.data[i+1] = encode(n+uint16(c), x)
-				s.count += count
-				return
-			}
-		}
-	}
-	if c > uint32(maxRepetitions) {
-		b0, b1 := encode(maxRepetitions, x)
-		for c > uint32(maxRepetitions) {
-			s.data = append(s.data, b0, b1)
-			c -= uint32(maxRepetitions)
-		}
-	}
-	if c > 0 {
-		b0, b1 := encode(uint16(c), x)
-		s.data = append(s.data, b0, b1)
+	if count == 1 {
+		s.data = append(s.data, 1<<flagBits|x)
+	} else {
+		s.data = append(s.data, encode(count, x)...)
 	}
 	s.count += count
 }
@@ -202,12 +168,18 @@ func (s *Sequence) Values(start, end time.Time) ([]uint8, int64, error) {
 func (s *Sequence) All() []uint8 {
 	data := make([]uint8, s.count)
 	index := 0
-	for i := 0; i < len(s.data); i += 2 {
-		n, v := decode(s.data[i], s.data[i+1])
-		for j := 0; j < int(n); j++ {
-			data[index] = v
-			index++
+	i := 0
+	for i < len(s.data) {
+		count, value, n := s.next(i)
+		if value == 0 {
+			index += int(count)
+		} else {
+			for j := 0; j < int(count); j++ {
+				data[index] = value
+				index++
+			}
 		}
+		i += n
 	}
 	return data
 }
@@ -249,9 +221,31 @@ func (s *Sequence) Length() uint32 {
 }
 
 // last returns the length and value of the last series in the sequence.
-func (s *Sequence) last() (uint16, uint8) {
-	i := len(s.data) - 2
-	return decode(s.data[i], s.data[i+1])
+// The third return value represents the number of bytes read.
+func (s *Sequence) last() (uint32, uint8, int) {
+	for i := len(s.data) - 2; i >= 0; i-- {
+		if s.data[i] < 0x80 {
+			return s.next(i + 1)
+		}
+	}
+	return s.next(0)
+}
+
+// next returns the length and value of the next series in the sequence.
+// The third return value represents the number of bytes read.
+func (s *Sequence) next(p int) (uint32, uint8, int) {
+	x := uint32(s.data[p] & 0x7f >> flagBits)
+	shift := 7 - flagBits
+	i := p
+	for i < len(s.data)-1 {
+		if s.data[i] < 0x80 {
+			break
+		}
+		x |= uint32(s.data[i+1]&0x7f) << shift
+		shift += 7
+		i++
+	}
+	return x, s.data[p] & flagBitsMask, i - p + 1
 }
 
 // interval returns the closed time interval associated to the sequence.
@@ -272,14 +266,37 @@ func (s *Sequence) clone() *Sequence {
 	return &clone
 }
 
-// encode encodes count and value as 2 bytes, keeping the 14 most
-// significant bits of count and the 2 most significant bits of value.
-func encode(count uint16, value uint8) (byte, byte) {
-	count <<= flagBits
-	return byte(count) | value, byte(count >> 8)
+// encode encodes count and value as bytes. As value represents a 2-bit value
+// in a sequence, the caller must ensure it is not greater than 0b11.
+func encode(count uint32, value uint8) []byte {
+	s := make([]uint8, 5)
+	x := int64(count) << flagBits
+	i := 0
+	for x >= 0x80 {
+		s[i] = byte(x) | 0x80
+		x >>= 7
+		i++
+	}
+	s[i] = byte(x)
+	s[0] |= value
+	return s[:i+1]
 }
 
 // decode decodes values encoded using the encode function.
-func decode(x, y byte) (uint16, uint8) {
-	return uint16(x>>flagBits) | uint16(y)<<(8-flagBits), x & flagBitsMask
+func decode(buf []byte) (uint32, uint8, int) {
+	if buf[len(buf)-1] >= 0x80 {
+		return 0, 0, 0
+	}
+	x := uint32(buf[0] & 0x7f >> flagBits)
+	shift := 7 - flagBits
+	i := 0
+	for i < len(buf)-1 {
+		if buf[i] < 0x80 {
+			return 0, 0, 0
+		}
+		x |= uint32(buf[i+1]&0x7f) << shift
+		shift += 7
+		i++
+	}
+	return x, buf[0] & flagBitsMask, i + 1
 }

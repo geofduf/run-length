@@ -218,10 +218,15 @@ func (s *Sequence) SetLength(x uint32) {
 		count, value, bytesRead := s.next(p)
 		v += count
 		if v == x {
-			s.data = s.data[:p+bytesRead]
+			buf := make([]byte, p+bytesRead)
+			copy(buf, s.data)
+			s.data = buf
 			break
 		} else if v > x {
-			s.data = append(s.data[:p], encode(count-(v-x), value)...)
+			last := encode(count-(v-x), value)
+			buf := make([]byte, p+len(last))
+			copy(buf, append(s.data[:p], last...))
+			s.data = buf
 			break
 		}
 		p += bytesRead

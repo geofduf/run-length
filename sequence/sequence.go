@@ -205,6 +205,30 @@ func (s *Sequence) Bytes() []byte {
 	return x
 }
 
+// SetLength sets the length of the sequence to x, silently right trimming
+// values if needed.
+func (s *Sequence) SetLength(x uint32) {
+	s.length = x
+	if x >= s.count {
+		return
+	}
+	v := uint32(0)
+	p := 0
+	for p < len(s.data) {
+		count, value, bytesRead := s.next(p)
+		v += count
+		if v == x {
+			s.data = s.data[:p+bytesRead]
+			break
+		} else if v > x {
+			s.data = append(s.data[:p], encode(count-(v-x), value)...)
+			break
+		}
+		p += bytesRead
+	}
+	s.count = x
+}
+
 // Timestamp returns the sequence reference timestamp as a Unix time.
 func (s *Sequence) Timestamp() int64 {
 	return s.ts

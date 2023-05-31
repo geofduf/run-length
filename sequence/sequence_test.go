@@ -180,6 +180,32 @@ func TestSequenceBytes(t *testing.T) {
 	}
 }
 
+func TestSequenceSetLength(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	tests := []struct {
+		id     int
+		length uint32
+		want   *Sequence
+	}{
+		{1, 1440, &Sequence{x.Unix(), testSequenceFrequency, 1440, 20, []byte{0x15, 0x14, 0x15, 0x12, 0x4}}},
+		{2, 12, &Sequence{x.Unix(), testSequenceFrequency, 12, 12, []byte{0x15, 0x14, 0x9}}},
+		{3, 8, &Sequence{x.Unix(), testSequenceFrequency, 8, 8, []byte{0x15, 0xc}}},
+	}
+	for _, tt := range tests {
+		got := &Sequence{
+			ts:        x.Unix(),
+			frequency: testSequenceFrequency,
+			length:    MaxSequenceLength,
+			count:     20,
+			data:      []byte{0x15, 0x14, 0x15, 0x12, 0x4},
+		}
+		got.SetLength(tt.length)
+		if !assertSequencesEqual(got, tt.want) {
+			t.Fatalf("test %d:\ngot  %+v\nwant %+v", tt.id, got, tt.want)
+		}
+	}
+}
+
 func assertSequencesEqual(x, y *Sequence) bool {
 	if x.ts != y.ts || x.frequency != y.frequency || x.length != y.length || x.count != y.count {
 		return false

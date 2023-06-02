@@ -206,6 +206,37 @@ func TestSequenceSetLength(t *testing.T) {
 	}
 }
 
+func TestSequenceRoll(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	f := int64(testSequenceFrequency)
+	tests := []struct {
+		id    int
+		shift int
+		want  *Sequence
+	}{
+		{1, 14 + 1, &Sequence{x.Unix(), testSequenceFrequency, 20, 16, []byte{0x15, 0x14, 0x19}}},
+		{2, 14 + 5 + 7, &Sequence{x.Unix() + 7*f, testSequenceFrequency, 20, 20, []byte{0xc, 0x15, 0x2e, 0x5}}},
+		{3, 14 + 5 + 10, &Sequence{x.Unix() + 10*f, testSequenceFrequency, 20, 20, []byte{0x15, 0x3a, 0x5}}},
+		{4, 14 + 5 + 40, &Sequence{x.Unix() + 40*f, testSequenceFrequency, 20, 20, []byte{0x4e, 0x5}}},
+	}
+	for _, tt := range tests {
+		got := &Sequence{
+			ts:        x.Unix(),
+			frequency: testSequenceFrequency,
+			length:    20,
+			count:     15,
+			data:      []byte{0x15, 0x14, 0x15},
+		}
+		err := got.Roll(shift(got, tt.shift, 0), StateActive)
+		if err != nil {
+			t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
+		}
+		if !assertSequencesEqual(got, tt.want) {
+			t.Fatalf("test %d:\ngot  %+v\nwant %+v", tt.id, got, tt.want)
+		}
+	}
+}
+
 func assertSequencesEqual(x, y *Sequence) bool {
 	if x.ts != y.ts || x.frequency != y.frequency || x.length != y.length || x.count != y.count {
 		return false

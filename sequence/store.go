@@ -11,7 +11,9 @@ import (
 
 // Statement types.
 const (
-	StatementAddValue uint8 = iota
+	StatementAdd uint8 = iota
+	StatementRoll
+	statementUnknown
 )
 
 // A Statement represents an operation to perform on a store.
@@ -69,7 +71,6 @@ func (s *Store) Get(key string) (*Sequence, bool) {
 
 // Execute executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
-// It currently only supports statements of type StatementAddValue.
 func (s *Store) Execute(statement Statement) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -79,7 +80,7 @@ func (s *Store) Execute(statement Statement) error {
 // Batch executes multiple statements against the store. Individual errors are non
 // blocking but if one or more statements could not be executed or induced an error
 // the method will return a global error and a slice holding information about each
-// individual error. It currently only supports statements of type StatementAddValue.
+// individual error.
 func (s *Store) Batch(statements []Statement) (error, []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -155,11 +156,10 @@ func (s *Store) Load(data []byte) error {
 
 // executeUnsafe executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
-// It currently only supports statements of type StatementAddValue. This method
-// is not goroutine-safe. The caller is responsible for properly acquiring / releasing
-// the lock on the store.
+// This method is not goroutine-safe. The caller is responsible for properly
+// acquiring / releasing the lock on the store.
 func (s *Store) executeUnsafe(statement Statement) error {
-	if statement.Type != StatementAddValue {
+	if statement.Type < 0 || statement.Type >= statementUnknown {
 		return errors.New("unknown statement type")
 	}
 	x, ok := s.m[statement.Key]
@@ -170,5 +170,12 @@ func (s *Store) executeUnsafe(statement Statement) error {
 		x = NewSequence(statement.CreateWithTimestamp, statement.CreateWithFrequency)
 		s.m[statement.Key] = x
 	}
-	return x.Add(statement.Timestamp, statement.Value)
+	var err error
+	switch statement.Type {
+	case StatementAdd:
+		err = x.Add(statement.Timestamp, statement.Value)
+	case StatementRoll:
+		err = x.Roll(statement.Timestamp, statement.Value)
+	}
+	return err
 }

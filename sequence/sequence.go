@@ -128,6 +128,41 @@ func (s *Sequence) Add(t time.Time, x uint8) error {
 	return nil
 }
 
+// Roll adds a value to the sequence but differs from Add in the sense
+// that it automatically discards oldest values if the add operation overflows
+// the maximum capacity of the sequence. It returns an error if t is less than
+// the timestamp of the sequence or if an entry already exists for t.
+func (s *Sequence) Roll(t time.Time, x uint8) error {
+	offset := (t.Unix()-s.ts)/int64(s.frequency) + 1
+	if offset < 1 {
+		return errors.New("out of bounds")
+	}
+	if offset <= int64(s.count) {
+		return errors.New("cannot overwrite value")
+	}
+	delta := offset - int64(s.count)
+	if offset > int64(s.length) {
+		n := offset - int64(s.length)
+		if n >= int64(s.count) {
+			x &= flagBitsMask
+			s.data = append(encode(s.length-1, StateUnknown), 1<<flagBits|x)
+			s.count = s.length
+			s.ts += n * int64(s.frequency)
+			return nil
+		}
+		if delta == 1 && len(s.data) == 1 && s.data[0]&flagBitsMask == x&flagBitsMask {
+			s.ts += int64(s.frequency)
+			return nil
+		}
+		s.trimLeft(uint32(n))
+	}
+	if delta > 1 {
+		s.addSeries(uint32(delta)-1, StateUnknown)
+	}
+	s.addSeries(1, x)
+	return nil
+}
+
 // addSeries adds a series of values to the sequence, using count as the
 // length of the series and x as the value.
 func (s *Sequence) addSeries(count uint32, x uint8) {
@@ -154,6 +189,34 @@ func (s *Sequence) addSeries(count uint32, x uint8) {
 		s.data = append(s.data, encode(count, x)...)
 	}
 	s.count += count
+}
+
+// trimLeft removes the x first values of the sequence and updates
+// its timestamp accordingly.
+func (s *Sequence) trimLeft(x uint32) {
+	y := uint32(0)
+	p := 0
+	for p < len(s.data) {
+		count, value, bytesRead := s.next(p)
+		y += count
+		if y == x {
+			s.data = s.data[p+bytesRead:]
+			s.count -= x
+			s.ts += int64(x) * int64(s.frequency)
+			break
+		} else if y > x {
+			buf := encode(y-x, value)
+			offset := bytesRead - len(buf)
+			for i := 0; i < len(buf); i++ {
+				s.data[p+offset] = buf[i]
+			}
+			s.data = s.data[p+offset:]
+			s.count -= x
+			s.ts += int64(x) * int64(s.frequency)
+			break
+		}
+		p += bytesRead
+	}
 }
 
 // Values returns raw values stored in the sequence using start and end as

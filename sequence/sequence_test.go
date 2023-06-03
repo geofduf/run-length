@@ -163,6 +163,43 @@ func TestAddSeries(t *testing.T) {
 		}
 	}
 }
+func TestSequenceAdd(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	got := NewSequence(x, testSequenceFrequency)
+	type result struct {
+		data []byte
+		err  bool
+	}
+	tests := []struct {
+		id    int
+		shift int
+		value uint8
+		want  result
+	}{
+		{1, 129, StateInactive, result{[]byte{0x86, 0x4, 0x4}, false}},
+		{2, 130, StateInactive, result{[]byte{0x86, 0x4, 0x8}, false}},
+		{3, 139, StateActive, result{[]byte{0x86, 0x4, 0x8, 0x22, 0x5}, false}},
+		{4, -1, StateActive, result{[]byte{}, true}},
+		{5, 1, StateActive, result{[]byte{}, true}},
+	}
+	for _, tt := range tests {
+		err := got.Add(shift(got, tt.shift, 0), tt.value)
+		if err != nil {
+			if !tt.want.err {
+				t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
+			}
+			continue
+		} else {
+			if tt.want.err {
+				t.Fatalf("test %d: got error nil, want non nil error", tt.id)
+			}
+		}
+		want := &Sequence{x.Unix(), testSequenceFrequency, MaxSequenceLength, uint32(tt.shift + 1), tt.want.data}
+		if !assertSequencesEqual(got, want) {
+			t.Fatalf("test %d:\ngot  %+v\nwant %+v", tt.id, got, want)
+		}
+	}
+}
 
 func TestSequenceBytes(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)

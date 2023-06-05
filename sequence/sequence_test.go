@@ -247,24 +247,26 @@ func TestSequenceRoll(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	f := int64(testSequenceFrequency)
 	tests := []struct {
-		id    int
-		shift int
-		want  *Sequence
+		id                  int
+		offsetFromLastValue int
+		want                *Sequence
 	}{
-		{1, 14 + 1, &Sequence{x.Unix(), testSequenceFrequency, 20, 16, []byte{0x15, 0x14, 0x19}}},
-		{2, 14 + 5 + 7, &Sequence{x.Unix() + 7*f, testSequenceFrequency, 20, 20, []byte{0xc, 0x15, 0x2e, 0x5}}},
-		{3, 14 + 5 + 10, &Sequence{x.Unix() + 10*f, testSequenceFrequency, 20, 20, []byte{0x15, 0x3a, 0x5}}},
-		{4, 14 + 5 + 40, &Sequence{x.Unix() + 40*f, testSequenceFrequency, 20, 20, []byte{0x4e, 0x5}}},
+		{1, 1, &Sequence{x.Unix(), testSequenceFrequency, 140, 136, []byte{0x15, 0x14, 0xf9, 0x3}}},
+		{2, 5 + 7, &Sequence{x.Unix() + 7*f, testSequenceFrequency, 140, 140, []byte{0xc, 0xf5, 0x3, 0x2e, 0x5}}},
+		{3, 5 + 10, &Sequence{x.Unix() + 10*f, testSequenceFrequency, 140, 140, []byte{0xf5, 0x3, 0x3a, 0x5}}},
+		{4, 5 + 12, &Sequence{x.Unix() + 12*f, testSequenceFrequency, 140, 140, []byte{0xed, 0x3, 0x42, 0x5}}},
+		{5, 5 + 130, &Sequence{x.Unix() + 130*f, testSequenceFrequency, 140, 140, []byte{0x15, 0x9a, 0x4, 0x5}}},
+		{6, 5 + 4000, &Sequence{x.Unix() + 4000*f, testSequenceFrequency, 140, 140, []byte{0xae, 0x4, 0x5}}},
 	}
 	for _, tt := range tests {
 		got := &Sequence{
 			ts:        x.Unix(),
 			frequency: testSequenceFrequency,
-			length:    20,
-			count:     15,
-			data:      []byte{0x15, 0x14, 0x15},
+			length:    140,
+			count:     135,
+			data:      []byte{0x15, 0x14, 0xf5, 0x3},
 		}
-		err := got.Roll(shift(got, tt.shift, 0), StateActive)
+		err := got.Roll(shift(got, 134+tt.offsetFromLastValue, 0), StateActive)
 		if err != nil {
 			t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
 		}

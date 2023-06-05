@@ -208,7 +208,7 @@ func (s *Sequence) trimLeft(x uint32) {
 			buf := encode(y-x, value)
 			offset := bytesRead - len(buf)
 			for i := 0; i < len(buf); i++ {
-				s.data[p+offset] = buf[i]
+				s.data[p+offset+i] = buf[i]
 			}
 			s.data = s.data[p+offset:]
 			s.count -= x

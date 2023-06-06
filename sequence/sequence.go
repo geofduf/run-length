@@ -163,6 +163,28 @@ func (s *Sequence) Roll(t time.Time, x uint8) error {
 	return nil
 }
 
+// TrimLeft drops all values older than t and updates the timestamp of
+// the sequence to the first offset greater or equal to t. It returns
+// an error if t is less than the timestamp of the sequence.
+func (s *Sequence) TrimLeft(t time.Time) error {
+	f := int64(s.frequency)
+	x := ceilInt64(t.Unix()-s.ts, f) / f
+	if x < 0 {
+		return errors.New("out of bounds")
+	}
+	if x == 0 {
+		return nil
+	}
+	if x >= int64(s.count) {
+		s.ts += x * f
+		s.count = 0
+		s.data = []byte{}
+		return nil
+	}
+	s.trimLeft(uint32(x))
+	return nil
+}
+
 // addSeries adds a series of values to the sequence, using count as the
 // length of the series and x as the value.
 func (s *Sequence) addSeries(count uint32, x uint8) {

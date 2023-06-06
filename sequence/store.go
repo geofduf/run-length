@@ -23,8 +23,9 @@ type Statement struct {
 	Value               uint8
 	Type                uint8
 	CreateIfNotExists   bool
-	CreateWithFrequency uint16
 	CreateWithTimestamp time.Time
+	CreateWithFrequency uint16
+	CreateWithLength    uint32
 }
 
 // A Store represents a collection of Sequences. A Store can be used simultaneously
@@ -168,6 +169,9 @@ func (s *Store) executeUnsafe(statement Statement) error {
 			return errors.New("key does not exist")
 		}
 		x = NewSequence(statement.CreateWithTimestamp, statement.CreateWithFrequency)
+		if statement.CreateWithLength > 0 {
+			x.SetLength(statement.CreateWithLength)
+		}
 		s.m[statement.Key] = x
 	}
 	var err error

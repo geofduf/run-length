@@ -70,6 +70,18 @@ func (s *Store) Get(key string) (*Sequence, bool) {
 	return x.clone(), true
 }
 
+// Query executes Sequence.Query() on the sequence associated to key, returning an
+// error if the key does not exist or if the underlying operation returned an error.
+func (s *Store) Query(key string, start time.Time, end time.Time, d time.Duration) (QuerySet, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	x, ok := s.m[key]
+	if !ok {
+		return QuerySet{}, errors.New("key does not exist")
+	}
+	return x.Query(start, end, d)
+}
+
 // Execute executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
 func (s *Store) Execute(statement Statement) error {

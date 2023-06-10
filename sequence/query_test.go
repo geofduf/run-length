@@ -82,6 +82,20 @@ func TestSequenceQuery(t *testing.T) {
 			time.Duration(f*25) * time.Second,
 			QuerySet{shift(s, -15, -1).Unix(), f * 25, []int64{5, 5, 0, 0}, []int64{10, 6, 0, 0}},
 		},
+		{
+			5,
+			shift(s, -10, 0),
+			shift(s, -5, -1),
+			time.Duration(f*2) * time.Second,
+			QuerySet{shift(s, -10, 0).Unix(), f * 2, []int64{0, 0, 0}, []int64{0, 0, 0}},
+		},
+		{
+			6,
+			shift(s, 100, 1),
+			shift(s, 105, 0),
+			time.Duration(f) * time.Second,
+			QuerySet{shift(s, 100, 1).Unix(), f, []int64{0, 0, 0, 0, 0}, []int64{0, 0, 0, 0, 0}},
+		},
 	}
 	for _, tt := range tests {
 		prefix := fmt.Sprintf("test %d (%s, %s, %d)", tt.id, tt.start, tt.end, int(tt.interval.Seconds()))

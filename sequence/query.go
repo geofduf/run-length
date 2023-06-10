@@ -105,14 +105,6 @@ func (s *Sequence) Query(start, end time.Time, d time.Duration) (QuerySet, error
 		return QuerySet{}, errors.New("invalid grouping interval")
 	}
 
-	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
-	if !ok {
-		return QuerySet{}, errors.New("out of bounds")
-	}
-
-	x := ceilInt64(r.start-s.ts, f) / f
-	y := (r.end - s.ts) / f
-
 	ts := start.Unix()
 
 	numberOfValues := (end.Unix()-ts)/f/aggregation + 1
@@ -123,6 +115,14 @@ func (s *Sequence) Query(start, end time.Time, d time.Duration) (QuerySet, error
 		Sum:       make([]int64, numberOfValues),
 		Count:     make([]int64, numberOfValues),
 	}
+
+	r, ok := s.interval().intersect(interval{start: start.Unix(), end: end.Unix()})
+	if !ok {
+		return qs, nil
+	}
+
+	x := ceilInt64(r.start-s.ts, f) / f
+	y := (r.end - s.ts) / f
 
 	src := int64(0)
 	shift := int64(0)

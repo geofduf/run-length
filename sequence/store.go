@@ -174,6 +174,22 @@ func (s *Store) Load(data []byte) error {
 	return nil
 }
 
+// Shrink aims at freeing up memory by resetting the store's underlying structures
+// to the minimum required capacity. This is mainly useful for frequently updated
+// collections of rolling sequences that are kept in memory indefinitely. The operation
+// may lead to many allocations and ultimately result in larger memory usage as new
+// values are added to the sequences.
+func (s *Store) Shrink() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := make(map[string]*Sequence, len(s.m))
+	for k := range s.m {
+		s.m[k].Shrink()
+		m[k] = s.m[k]
+	}
+	s.m = m
+}
+
 // executeUnsafe executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
 // This method is not goroutine-safe. The caller is responsible for properly

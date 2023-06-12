@@ -319,6 +319,17 @@ func (s *Sequence) SetLength(x uint32) {
 	s.count = x
 }
 
+// Shrink aims at freeing up memory by resetting the sequence's underlying
+// structures to the minimum required capacity. This is mainly useful for frequently
+// updated rolling sequences that are kept in memory indefinitely. The operation may
+// lead to allocations and ultimately result in larger memory usage as new values are
+// added to the sequence.
+func (s *Sequence) Shrink() {
+	data := make([]byte, len(s.data))
+	copy(data, s.data)
+	s.data = data
+}
+
 // Timestamp returns the sequence reference timestamp as a Unix time.
 func (s *Sequence) Timestamp() int64 {
 	return s.ts

@@ -58,6 +58,13 @@ func (s *Store) Add(key string, x *Sequence) {
 	s.mu.Unlock()
 }
 
+// Delete removes key from the store.
+func (s *Store) Delete(key string) {
+	s.mu.Lock()
+	delete(s.m, key)
+	s.mu.Unlock()
+}
+
 // Get returns a copy of the Sequence associated to key. The second return value is
 // true if the key exists in the store and false if not.
 func (s *Store) Get(key string) (*Sequence, bool) {

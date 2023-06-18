@@ -2,24 +2,16 @@
 
 Run-length encoding of regularly spaced binary states.
 
-# Overview
+# sequence package
 
-The package sequence defines the type Sequence, with methods for adding and querying values, and
+The `sequence` package defines the type Sequence, with methods for adding and querying values, and
 the type Store, with methods for interacting with a collection of sequences.
 
-A Sequence is defined by a starting timestamp, a frequency, and a maximum length.
-It follows an append-only pattern and supports automatic discarding of oldest values when
-its capacity is reached. It can be exported as []byte, easing integration with
-storage systems.
-
-A Store is essentially a wrapper around a map of sequences that provides convenience methods
-safe to use from multiple goroutines.
-
-# Documentation
+**Documentation:**
 
 https://pkg.go.dev/github.com/geofduf/run-length/sequence
 
-# Example usage
+**Example usage:**
 
 Initialize an empty sequence by specifying its timestamp and frequency. The following
 example shows how to initialize a sequence that starts on January 1, 2023 00:00:00 UTC and has a
@@ -31,19 +23,6 @@ s := sequence.NewSequence(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), 60)
 
 Add a value to a sequence by calling Sequence.Add() or Sequence.Roll(), passing the
 timestamp and the value. The entry will be added to the sequence at the corresponding interval.
-Sequence values are represented as uint8 for convenience but the only supported values are:
-
-```go
-const (
-    StateInactive uint8 = iota // 0b00
-    StateActive                // 0b01
-    StateUnknown               // 0b10
-)
-```
-
-Passing unsupported values to functions or methods will result in undefined behavior.
-
-The following code shows how to add a few values to our sequence.
 
 ```go
 if err := s.Add(time.Date(2023, 1, 1, 0, 4, 59, 0, time.UTC), sequence.StateActive); err != nil {

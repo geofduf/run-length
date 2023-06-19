@@ -2,7 +2,7 @@
 
 Run-length encoding of regularly spaced binary states.
 
-# sequence package
+## sequence package
 
 The `sequence` package defines the type Sequence, with methods for adding and querying values, and
 the type Store, with methods for interacting with a collection of sequences.

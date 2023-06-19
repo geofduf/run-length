@@ -28,6 +28,7 @@ func ExampleSequence_Query() {
 	// 946771200 5 3
 	// 946771500 4 3
 }
+
 func ExampleQuerySet_Serialize() {
 	start := time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2000, 1, 2, 0, 9, 59, 0, time.UTC)

@@ -8,7 +8,7 @@ import (
 
 func TestSequenceQueryValues(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
-	s := NewSequenceFromValues(x, testSequenceFrequency, testValues)
+	s := NewWithValues(x, testSequenceFrequency, testValues)
 	f := int64(s.frequency)
 	type result struct {
 		values    []uint8
@@ -45,7 +45,7 @@ func TestSequenceQueryValues(t *testing.T) {
 
 func TestSequenceQuery(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
-	s := NewSequenceFromValues(x, testSequenceFrequency, testValues)
+	s := NewWithValues(x, testSequenceFrequency, testValues)
 	f := int64(testSequenceFrequency)
 	tests := []struct {
 		id       int

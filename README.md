@@ -18,7 +18,7 @@ example shows how to initialize a sequence that starts on January 1, 2023 00:00:
 frequency of 60 seconds.
 
 ```go
-s := sequence.NewSequence(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), 60)
+s := sequence.New(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), 60)
 ```
 
 Add a value to a sequence by calling Sequence.Add() or Sequence.Roll(), passing the

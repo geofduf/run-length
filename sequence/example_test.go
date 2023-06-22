@@ -11,7 +11,7 @@ func ExampleSequence_Query() {
 	start := time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2000, 1, 2, 0, 9, 59, 0, time.UTC)
 
-	s := sequence.NewSequenceFromValues(start, 60, []uint8{1, 1, 1, 0, 0, 0, 1, 1, 1})
+	s := sequence.NewWithValues(start, 60, []uint8{1, 1, 1, 0, 0, 0, 1, 1, 1})
 
 	qs, err := s.Query(start, end, 5*time.Minute)
 	if err != nil {
@@ -33,7 +33,7 @@ func ExampleQuerySet_Serialize() {
 	start := time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2000, 1, 2, 0, 9, 59, 0, time.UTC)
 
-	s := sequence.NewSequenceFromValues(start, 60, []uint8{1, 1, 1, 0, 0, 0, 1, 1, 1})
+	s := sequence.NewWithValues(start, 60, []uint8{1, 1, 1, 0, 0, 0, 1, 1, 1})
 
 	qs, err := s.Query(start, end, 5*time.Minute)
 	if err != nil {

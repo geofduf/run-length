@@ -35,7 +35,7 @@ func TestDecode(t *testing.T) {
 	}
 }
 
-func TestNewSequence(t *testing.T) {
+func TestNew(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	want := &Sequence{
 		ts:        x.Unix(),
@@ -43,13 +43,13 @@ func TestNewSequence(t *testing.T) {
 		length:    MaxSequenceLength,
 		count:     0,
 	}
-	got := NewSequence(x, testSequenceFrequency)
+	got := New(x, testSequenceFrequency)
 	if !assertSequencesEqual(got, want) {
 		t.Fatalf("\ngot  %+v\nwant %+v", got, want)
 	}
 }
 
-func TestNewSequenceFromValues(t *testing.T) {
+func TestNewWithValues(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	want := &Sequence{
 		ts:        x.Unix(),
@@ -58,12 +58,13 @@ func TestNewSequenceFromValues(t *testing.T) {
 		count:     20,
 		data:      []uint8{0x15, 0x14, 0x15, 0x12, 0x4},
 	}
-	got := NewSequenceFromValues(x, testSequenceFrequency, testValues)
+	got := NewWithValues(x, testSequenceFrequency, testValues)
 	if !assertSequencesEqual(got, want) {
 		t.Fatalf("\ngot  %+v\nwant %+v", got, want)
 	}
 }
-func TestNewSequenceFromBytes(t *testing.T) {
+
+func TestFromBytes(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	want := &Sequence{
 		ts:        x.Unix(),
@@ -72,7 +73,7 @@ func TestNewSequenceFromBytes(t *testing.T) {
 		count:     129,
 		data:      []byte{0x4, 0x2},
 	}
-	got, err := NewSequenceFromBytes(append(testSequenceBasePrefix, []byte{0x81, 0x0, 0x0, 0x0, 0x4, 0x2}...))
+	got, err := FromBytes(append(testSequenceBasePrefix, []byte{0x81, 0x0, 0x0, 0x0, 0x4, 0x2}...))
 	if err != nil {
 		t.Fatalf("got error %s, want error nil", err)
 	}
@@ -138,7 +139,7 @@ func TestLast(t *testing.T) {
 
 func TestAddSeries(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
-	s := NewSequence(x, testSequenceFrequency)
+	s := New(x, testSequenceFrequency)
 	tests := []struct {
 		id    int
 		count uint32
@@ -163,9 +164,10 @@ func TestAddSeries(t *testing.T) {
 		}
 	}
 }
+
 func TestSequenceAdd(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
-	got := NewSequence(x, testSequenceFrequency)
+	got := New(x, testSequenceFrequency)
 	type result struct {
 		data []byte
 		err  bool

@@ -45,7 +45,7 @@ func NewStore() *Store {
 // Sequence.
 func (s *Store) New(t time.Time, f uint16, key string) {
 	s.mu.Lock()
-	s.m[key] = NewSequence(t, f)
+	s.m[key] = New(t, f)
 	s.mu.Unlock()
 }
 
@@ -164,7 +164,7 @@ func (s *Store) Load(data []byte) error {
 		i += int(v)
 		v, n = binary.Varint(data[i:])
 		i += n
-		s.m[key], err = NewSequenceFromBytes(data[i : i+int(v)])
+		s.m[key], err = FromBytes(data[i : i+int(v)])
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func (s *Store) executeUnsafe(statement Statement) error {
 		if !statement.CreateIfNotExists {
 			return errors.New("key does not exist")
 		}
-		x = NewSequence(statement.CreateWithTimestamp, statement.CreateWithFrequency)
+		x = New(statement.CreateWithTimestamp, statement.CreateWithFrequency)
 		if statement.CreateWithLength > 0 {
 			x.SetLength(statement.CreateWithLength)
 		}

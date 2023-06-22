@@ -43,10 +43,10 @@ type Sequence struct {
 	data      []byte
 }
 
-// NewSequence creates and intializes a new Sequence using t rounded down to
+// New creates and intializes a new Sequence using t rounded down to
 // the second as its reference timestamp and f as its frequency in seconds.
 // The sequence frequency will default to 1 if set to 0.
-func NewSequence(t time.Time, f uint16) *Sequence {
+func New(t time.Time, f uint16) *Sequence {
 	if f == 0 {
 		f = 1
 	}
@@ -58,13 +58,13 @@ func NewSequence(t time.Time, f uint16) *Sequence {
 	return &s
 }
 
-// NewSequenceFromValues creates a new Sequence using t rounded down to the second
+// NewWithValues creates a new Sequence using t rounded down to the second
 // as its reference timestamp, f as its frequency in seconds and values as its
 // initial content. The sequence frequency will default to 1 if set to 0. If the
 // length of values is greater than the maximum length of the sequence the trailing
 // elements will be silently ignored.
-func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
-	s := NewSequence(t, f)
+func NewWithValues(t time.Time, f uint16, values []uint8) *Sequence {
+	s := New(t, f)
 	n := len(values)
 	if n == 0 {
 		return s
@@ -86,9 +86,9 @@ func NewSequenceFromValues(t time.Time, f uint16, values []uint8) *Sequence {
 	return s
 }
 
-// NewSequenceFromBytes creates a new Sequence using data, an encoded Sequence, as
-// its inital content.
-func NewSequenceFromBytes(data []byte) (*Sequence, error) {
+// FromBytes creates a Sequence using data, a Sequence represented as
+// a slice of bytes.
+func FromBytes(data []byte) (*Sequence, error) {
 	n := len(data)
 	if n < indexData {
 		return nil, errors.New("cannot decode the sequence")
@@ -269,7 +269,7 @@ func (s *Sequence) All() []uint8 {
 	return data
 }
 
-// Bytes returns the encoded sequence.
+// Bytes returns s as a slice of bytes.
 func (s *Sequence) Bytes() []byte {
 	x := make([]byte, indexData+len(s.data))
 	i := indexTimestamp

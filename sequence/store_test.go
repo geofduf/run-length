@@ -9,8 +9,8 @@ func TestStoreDumpLoad(t *testing.T) {
 	src := NewStore()
 	t1, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	t2, _ := time.Parse("2006-01-02 03:04:05", "2001-02-03 04:05:06")
-	src.Add("k1", NewSequenceFromValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
-	src.Add("k11", NewSequenceFromValues(t2, 120, newSliceOfValues(32, 1)))
+	src.Add("k1", NewWithValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
+	src.Add("k11", NewWithValues(t2, 120, newSliceOfValues(32, 1)))
 	dump, err := src.Dump()
 	if err != nil {
 		t.Fatalf("got error %s, want error nil", err)
@@ -38,8 +38,8 @@ func TestStoreKeys(t *testing.T) {
 	store := NewStore()
 	t1, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	t2, _ := time.Parse("2006-01-02 03:04:05", "2001-02-03 04:05:06")
-	store.Add("k1", NewSequenceFromValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
-	store.Add("k2", NewSequenceFromValues(t2, 120, newSliceOfValues(32, 1)))
+	store.Add("k1", NewWithValues(t1, testSequenceFrequency, newSliceOfValues(12, 0)))
+	store.Add("k2", NewWithValues(t2, 120, newSliceOfValues(32, 1)))
 	want := []string{"k1", "k2"}
 	got := store.Keys()
 	if n, m := len(got), len(want); n != m {

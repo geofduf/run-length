@@ -33,7 +33,7 @@ const (
 // in a sequence.
 const MaxSequenceLength = 4294967295
 
-// A Sequence represents a time series of regularly spaced 2-bit values.
+// A Sequence represents a time series of regularly spaced binary states.
 // The maximum length of a sequence is 4294967295.
 type Sequence struct {
 	ts        int64
@@ -112,7 +112,8 @@ func FromBytes(data []byte) (*Sequence, error) {
 }
 
 // Add adds a value to the sequence, returning an error if outside the
-// time boundaries of the sequence or if an entry already exists.
+// time boundaries of the sequence or if an entry already exists for the
+// interval.
 func (s *Sequence) Add(t time.Time, x uint8) error {
 	offset := (t.Unix()-s.ts)/int64(s.frequency) + 1
 	if offset < 1 || offset > int64(s.length) {
@@ -131,7 +132,7 @@ func (s *Sequence) Add(t time.Time, x uint8) error {
 // Roll adds a value to the sequence but differs from Add in the sense
 // that it automatically discards oldest values if the add operation overflows
 // the maximum capacity of the sequence. It returns an error if t is less than
-// the timestamp of the sequence or if an entry already exists for t.
+// the timestamp of the sequence or if an entry already exists for the interval.
 func (s *Sequence) Roll(t time.Time, x uint8) error {
 	offset := (t.Unix()-s.ts)/int64(s.frequency) + 1
 	if offset < 1 {
@@ -269,7 +270,7 @@ func (s *Sequence) All() []uint8 {
 	return data
 }
 
-// Bytes returns s as a slice of bytes.
+// Bytes returns s represented as a slice of bytes.
 func (s *Sequence) Bytes() []byte {
 	x := make([]byte, indexData+len(s.data))
 	i := indexTimestamp

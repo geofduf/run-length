@@ -77,7 +77,7 @@ Running the above code on our sequence would output :
 ```
 
 Use Sequence.Query() to execute an aggregate query on the sequence. The following code shows how
-to execute a query with a grouping interval of 10 minutes and print the result as JSON using
+to execute a query with a grouping interval of 5 minutes and print the result as JSON using
 QuerySet.Serialize().
 
 ```go

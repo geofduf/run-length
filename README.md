@@ -59,7 +59,7 @@ for _, v := range s.All() {
 }
 ```
 
-Running the above code on our sequence would output :
+Running the above code on our sequence would output:
 
 ```
 2023-01-01 00:00:00 2 (unknown)
@@ -93,8 +93,40 @@ flag := sequence.SerializeCount | sequence.SerializeMean
 fmt.Printf("%s\n", qs.Serialize("2006-01-02 15:04", time.UTC, 2, flag))
 ```
 
-Running the above code on our sequence would output :
+Running the above code on our sequence would output:
 
 ```
 [{"date":"2023-01-01 00:00","count":1,"mean":1.00},{"date":"2023-01-01 00:05","count":0,"mean":null},{"date":"2023-01-01 00:10","count":2,"mean":0.50}]
 ```
+
+Sequence.Roll() is similar to Sequence.Add() but automatically discards oldest values if the
+operation overflows the maximum capacity of the sequence. The following example shows how to set
+the maximum length of our sequence to 15 values and append 5 values to the 12 already stored.
+
+```go
+s.SetLength(15)
+t := time.Date(2023, 1, 1, 0, 12, 0, 0, time.UTC)
+
+for i := 0; i < 5; i++ {
+    err := s.Roll(t, sequence.StateActive)
+    if err != nil {
+        // ...
+    }
+    fmt.Println(time.Unix(s.Timestamp(), 0).UTC().Format("2006-01-02 15:04:05"), s.All())
+    t = t.Add(time.Minute)
+}
+```
+
+Running the above code on our sequence would output:
+
+```
+2023-01-01 00:00:00 [2 2 2 2 1 2 2 2 2 2 0 1 1]
+2023-01-01 00:00:00 [2 2 2 2 1 2 2 2 2 2 0 1 1 1]
+2023-01-01 00:00:00 [2 2 2 2 1 2 2 2 2 2 0 1 1 1 1]
+2023-01-01 00:01:00 [2 2 2 1 2 2 2 2 2 0 1 1 1 1 1]
+2023-01-01 00:02:00 [2 2 1 2 2 2 2 2 0 1 1 1 1 1 1]
+```
+
+For frequently updated sequences that are kept in memory indefinitely, periodically discarding
+chunks of values using Sequence.TrimLeft() and ordinary sequences should probably be preferred to
+the Sequence.Roll() pattern.

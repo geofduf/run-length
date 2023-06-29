@@ -25,11 +25,11 @@ type QuerySet struct {
 	Count []int64
 }
 
-// queryValues returns raw values stored in the sequence using start and end as
+// Values returns raw values stored in the sequence using start and end as
 // closed interval filter. The second return value is the Unix time associated to
 // the first element of the slice. The method returns an error if the interval filter
 // and the sequence don't overlap.
-func (s *Sequence) queryValues(start, end time.Time) ([]uint8, int64, error) {
+func (s *Sequence) Values(start, end time.Time) ([]uint8, int64, error) {
 	if start.After(end) {
 		return []uint8{}, 0, errors.New("invalid arguments")
 	}
@@ -193,16 +193,4 @@ func ceilInt64(x int64, step int64) int64 {
 // equal to x that is a multiple of step.
 func floorInt64(x int64, step int64) int64 {
 	return x - x%step
-}
-
-// newSliceOfValues returns a slice of length n with all its values set to x.
-func newSliceOfValues(n int, x uint8) []uint8 {
-	s := make([]uint8, n)
-	if x == 0 {
-		return s
-	}
-	for i := 0; i < n; i++ {
-		s[i] = x
-	}
-	return s
 }

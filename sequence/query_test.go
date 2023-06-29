@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestSequenceQueryValues(t *testing.T) {
+func TestSequenceValues(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
 	s := NewWithValues(x, testSequenceFrequency, testValues)
 	f := int64(s.frequency)
@@ -30,7 +30,7 @@ func TestSequenceQueryValues(t *testing.T) {
 		prefix := fmt.Sprintf("test %d (%s, %s)", tt.id, tt.start, tt.end)
 		var got result
 		var err error
-		got.values, got.timestamp, err = s.queryValues(tt.start, tt.end)
+		got.values, got.timestamp, err = s.Values(tt.start, tt.end)
 		if err != nil {
 			t.Fatalf("%s: got error %s, want error nil", prefix, err)
 		}

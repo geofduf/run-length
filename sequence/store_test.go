@@ -109,3 +109,14 @@ func TestStoreExecuteUnsafe(t *testing.T) {
 		}
 	}
 }
+
+func newSliceOfValues(n int, x uint8) []uint8 {
+	s := make([]uint8, n)
+	if x == 0 {
+		return s
+	}
+	for i := 0; i < n; i++ {
+		s[i] = x
+	}
+	return s
+}

@@ -196,7 +196,7 @@ func TestSequenceAdd(t *testing.T) {
 				t.Fatalf("test %d: got error nil, want non nil error", tt.id)
 			}
 		}
-		want := &Sequence{x.Unix(), testSequenceFrequency, MaxSequenceLength, uint32(tt.shift + 1), tt.want.data}
+		want := &Sequence{x.Unix(), MaxSequenceLength, uint32(tt.shift + 1), testSequenceFrequency, tt.want.data}
 		if !assertSequencesEqual(got, want) {
 			t.Fatalf("test %d:\ngot  %+v\nwant %+v", tt.id, got, want)
 		}
@@ -226,9 +226,9 @@ func TestSequenceSetLength(t *testing.T) {
 		length uint32
 		want   *Sequence
 	}{
-		{1, 1440, &Sequence{x.Unix(), testSequenceFrequency, 1440, 20, []byte{0x15, 0x14, 0x15, 0x12, 0x4}}},
-		{2, 12, &Sequence{x.Unix(), testSequenceFrequency, 12, 12, []byte{0x15, 0x14, 0x9}}},
-		{3, 8, &Sequence{x.Unix(), testSequenceFrequency, 8, 8, []byte{0x15, 0xc}}},
+		{1, 1440, &Sequence{x.Unix(), 1440, 20, testSequenceFrequency, []byte{0x15, 0x14, 0x15, 0x12, 0x4}}},
+		{2, 12, &Sequence{x.Unix(), 12, 12, testSequenceFrequency, []byte{0x15, 0x14, 0x9}}},
+		{3, 8, &Sequence{x.Unix(), 8, 8, testSequenceFrequency, []byte{0x15, 0xc}}},
 	}
 	for _, tt := range tests {
 		got := &Sequence{
@@ -260,12 +260,12 @@ func TestSequenceRoll(t *testing.T) {
 		timestamp time.Time
 		want      *Sequence
 	}{
-		{1, shift(s, 134+1, 0), &Sequence{x.Unix(), f, 140, 136, []byte{0x15, 0x14, 0xf9, 0x3}}},
-		{2, shift(s, 134+5+7, 0), &Sequence{x.Unix() + 7*int64(f), f, 140, 140, []byte{0xc, 0xf5, 0x3, 0x2e, 0x5}}},
-		{3, shift(s, 134+5+10, 0), &Sequence{x.Unix() + 10*int64(f), f, 140, 140, []byte{0xf5, 0x3, 0x3a, 0x5}}},
-		{4, shift(s, 134+5+12, 0), &Sequence{x.Unix() + 12*int64(f), f, 140, 140, []byte{0xed, 0x3, 0x42, 0x5}}},
-		{5, shift(s, 134+5+130, 0), &Sequence{x.Unix() + 130*int64(f), f, 140, 140, []byte{0x15, 0x9a, 0x4, 0x5}}},
-		{6, shift(s, 134+5+4000, 0), &Sequence{x.Unix() + 4000*int64(f), f, 140, 140, []byte{0xae, 0x4, 0x5}}},
+		{1, shift(s, 134+1, 0), &Sequence{x.Unix(), 140, 136, f, []byte{0x15, 0x14, 0xf9, 0x3}}},
+		{2, shift(s, 134+5+7, 0), &Sequence{x.Unix() + 7*int64(f), 140, 140, f, []byte{0xc, 0xf5, 0x3, 0x2e, 0x5}}},
+		{3, shift(s, 134+5+10, 0), &Sequence{x.Unix() + 10*int64(f), 140, 140, f, []byte{0xf5, 0x3, 0x3a, 0x5}}},
+		{4, shift(s, 134+5+12, 0), &Sequence{x.Unix() + 12*int64(f), 140, 140, f, []byte{0xed, 0x3, 0x42, 0x5}}},
+		{5, shift(s, 134+5+130, 0), &Sequence{x.Unix() + 130*int64(f), 140, 140, f, []byte{0x15, 0x9a, 0x4, 0x5}}},
+		{6, shift(s, 134+5+4000, 0), &Sequence{x.Unix() + 4000*int64(f), 140, 140, f, []byte{0xae, 0x4, 0x5}}},
 	}
 	for _, tt := range tests {
 		got := s.clone()
@@ -294,15 +294,15 @@ func TestSequenceTrimLeft(t *testing.T) {
 		timestamp time.Time
 		want      *Sequence
 	}{
-		{1, shift(s, 7, 0), &Sequence{x.Unix() + 7*int64(f), f, 140, 128, []byte{0xc, 0xf5, 0x3}}},
-		{2, shift(s, 7, 1), &Sequence{x.Unix() + 8*int64(f), f, 140, 127, []byte{0x8, 0xf5, 0x3}}},
-		{3, shift(s, 10, 0), &Sequence{x.Unix() + 10*int64(f), f, 140, 125, []byte{0xf5, 0x3}}},
-		{4, shift(s, 10, 1), &Sequence{x.Unix() + 11*int64(f), f, 140, 124, []byte{0xf1, 0x3}}},
-		{5, shift(s, 12, 0), &Sequence{x.Unix() + 12*int64(f), f, 140, 123, []byte{0xed, 0x3}}},
-		{6, shift(s, 12, 1), &Sequence{x.Unix() + 13*int64(f), f, 140, 122, []byte{0xe9, 0x3}}},
-		{7, shift(s, 130, 0), &Sequence{x.Unix() + 130*int64(f), f, 140, 5, []byte{0x15}}},
-		{8, shift(s, 130, 1), &Sequence{x.Unix() + 131*int64(f), f, 140, 4, []byte{0x11}}},
-		{9, shift(s, 4000, 0), &Sequence{x.Unix() + 4000*int64(f), f, 140, 0, []byte{}}},
+		{1, shift(s, 7, 0), &Sequence{x.Unix() + 7*int64(f), 140, 128, f, []byte{0xc, 0xf5, 0x3}}},
+		{2, shift(s, 7, 1), &Sequence{x.Unix() + 8*int64(f), 140, 127, f, []byte{0x8, 0xf5, 0x3}}},
+		{3, shift(s, 10, 0), &Sequence{x.Unix() + 10*int64(f), 140, 125, f, []byte{0xf5, 0x3}}},
+		{4, shift(s, 10, 1), &Sequence{x.Unix() + 11*int64(f), 140, 124, f, []byte{0xf1, 0x3}}},
+		{5, shift(s, 12, 0), &Sequence{x.Unix() + 12*int64(f), 140, 123, f, []byte{0xed, 0x3}}},
+		{6, shift(s, 12, 1), &Sequence{x.Unix() + 13*int64(f), 140, 122, f, []byte{0xe9, 0x3}}},
+		{7, shift(s, 130, 0), &Sequence{x.Unix() + 130*int64(f), 140, 5, f, []byte{0x15}}},
+		{8, shift(s, 130, 1), &Sequence{x.Unix() + 131*int64(f), 140, 4, f, []byte{0x11}}},
+		{9, shift(s, 4000, 0), &Sequence{x.Unix() + 4000*int64(f), 140, 0, f, []byte{}}},
 	}
 	for _, tt := range tests {
 		got := s.clone()

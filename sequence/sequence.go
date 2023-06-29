@@ -37,9 +37,9 @@ const MaxSequenceLength = 4294967295
 // The maximum length of a sequence is 4294967295.
 type Sequence struct {
 	ts        int64
-	frequency uint16
 	length    uint32
 	count     uint32
+	frequency uint16
 	data      []byte
 }
 

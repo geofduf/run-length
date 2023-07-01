@@ -6,9 +6,8 @@ type interval struct {
 	end   int64
 }
 
-// intersect returns the intersection with the closed interval y. If no
-// intersection is found, the second value returned by the method
-// is false.
+// intersect returns the intersection of x and y. If they don't
+// overlap, the second return value is false.
 func (x interval) intersect(y interval) (interval, bool) {
 	if x.start <= y.start {
 		if x.end >= y.end {

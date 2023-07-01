@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	sizeTimestamp = 4
+	sizeTimestamp = 8
 	sizeFrequency = 2
 	sizeLength    = 4
 	sizeCounter   = 4
@@ -98,7 +98,8 @@ func FromBytes(data []byte) (*Sequence, error) {
 	}
 	copy(s.data, data[indexData:])
 	i := indexTimestamp
-	s.ts = int64(data[i]) | int64(data[i+1])<<8 | int64(data[i+2])<<16 | int64(data[i+3])<<24
+	s.ts = int64(data[i]) | int64(data[i+1])<<8 | int64(data[i+2])<<16 | int64(data[i+3])<<24 |
+		int64(data[i+4])<<32 | int64(data[i+5])<<40 | int64(data[i+6])<<48 | int64(data[i+7])<<56
 	i = indexFrequency
 	s.frequency = uint16(data[i]) | uint16(data[i+1])<<8
 	i = indexLength
@@ -266,7 +267,14 @@ func (s *Sequence) All() []uint8 {
 func (s *Sequence) Bytes() []byte {
 	x := make([]byte, indexData+len(s.data))
 	i := indexTimestamp
-	x[i], x[i+1], x[i+2], x[i+3] = byte(s.ts), byte(s.ts>>8), byte(s.ts>>16), byte(s.ts>>24)
+	x[i] = byte(s.ts)
+	x[i+1] = byte(s.ts >> 8)
+	x[i+2] = byte(s.ts >> 16)
+	x[i+3] = byte(s.ts >> 24)
+	x[i+4] = byte(s.ts >> 32)
+	x[i+5] = byte(s.ts >> 40)
+	x[i+6] = byte(s.ts >> 48)
+	x[i+7] = byte(s.ts >> 56)
 	i = indexFrequency
 	x[i], x[i+1] = byte(s.frequency), byte(s.frequency>>8)
 	if v := s.length; v != MaxSequenceLength {

@@ -219,6 +219,16 @@ func TestSequenceBytes(t *testing.T) {
 	}
 }
 
+func TestSequenceAll(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	s := NewWithValues(x, testSequenceFrequency, testValues)
+	got := s.All()
+	want := testValues
+	if !assertValuesEqual(got, want) {
+		t.Fatalf("\ngot  %v\nwant %v", got, want)
+	}
+}
+
 func TestSequenceSetLength(t *testing.T) {
 	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
 	tests := []struct {

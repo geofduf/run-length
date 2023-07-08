@@ -5,6 +5,69 @@ import (
 	"time"
 )
 
+func TestStoreNew(t *testing.T) {
+	store := NewStore()
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	store.New(x, testSequenceFrequency, "s1")
+	got, ok := store.m["s1"]
+	if !ok {
+		t.Fatalf("key should exist in store")
+	}
+	want := New(x, testSequenceFrequency)
+	if !assertSequencesEqual(got, want) {
+		t.Fatalf("\ngot  %+v\nwant %+v", got, want)
+	}
+}
+
+func TestStoreAdd(t *testing.T) {
+	store := NewStore()
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	want := NewWithValues(x, testSequenceFrequency, testValues)
+	store.Add("s1", want)
+	got, ok := store.m["s1"]
+	if !ok {
+		t.Fatalf("key should exist in store")
+	}
+	if got == want {
+		t.Fatalf("pointer values should not be equal")
+	}
+	if !assertSequencesEqual(got, want) {
+		t.Fatalf("\ngot  %+v\nwant %+v", got, want)
+	}
+}
+
+func TestStoredDelete(t *testing.T) {
+	store := NewStore()
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	store.New(x, testSequenceFrequency, "s1")
+	store.Delete("s1")
+	_, ok := store.m["s1"]
+	if ok {
+		t.Fatalf("key should not exist in store")
+	}
+}
+
+func TestStoreGet(t *testing.T) {
+	store := NewStore()
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	want := NewWithValues(x, testSequenceFrequency, testValues)
+	store.Add("s1", want)
+	got, ok := store.Get("s1")
+	if !ok {
+		t.Fatalf("got %t, want true", ok)
+	}
+	if got == want {
+		t.Fatalf("pointer values should not be equal")
+	}
+	if !assertSequencesEqual(got, want) {
+		t.Fatalf("\ngot  %+v\nwant %+v", got, want)
+	}
+	_, ok = store.Get("s2")
+	if ok {
+		t.Fatalf("got %t, want false", ok)
+	}
+}
+
 func TestStoreDumpLoad(t *testing.T) {
 	src := NewStore()
 	t1, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)

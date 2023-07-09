@@ -195,7 +195,7 @@ func (s *Store) Shrink() {
 // This method is not goroutine-safe. The caller is responsible for properly
 // acquiring / releasing the lock on the store.
 func (s *Store) executeUnsafe(statement Statement) error {
-	if statement.Type < 0 || statement.Type >= statementUnknown {
+	if statement.Type >= statementUnknown {
 		return errors.New("unknown statement type")
 	}
 	x, ok := s.m[statement.Key]

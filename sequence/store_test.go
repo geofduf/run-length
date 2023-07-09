@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -122,54 +123,87 @@ func TestStoreKeys(t *testing.T) {
 	}
 }
 
-func TestStoreExecuteUnsafe(t *testing.T) {
+func TestStoreExecuteUnknownStatement(t *testing.T) {
 	x := time.Now()
+	statement := Statement{
+		Key:                 "s1",
+		Timestamp:           x,
+		Value:               StateActive,
+		CreateIfNotExists:   true,
+		CreateWithTimestamp: x,
+		CreateWithFrequency: testSequenceFrequency,
+	}
+	for _, v := range []uint8{statementUnknown, statementUnknown + 1} {
+		t.Run(fmt.Sprintf("Type=%d", v), func(t *testing.T) {
+			statement.Type = v
+			if err := NewStore().Execute(statement); err == nil {
+				t.Fatal("got error nil, want non nil error")
+			}
+		})
+	}
+}
+
+func TestStoreExecuteKeyDoesNotExist(t *testing.T) {
+	statement := Statement{
+		Key:       "s1",
+		Timestamp: time.Now(),
+		Value:     StateActive,
+	}
+	if err := NewStore().Execute(statement); err == nil {
+		t.Fatal("got error nil, want non nil error")
+	}
+}
+
+func TestStoreExecute(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	f := testSequenceFrequency
 	type result struct {
-		err    bool
-		length int
+		seq *Sequence
+		err error
 	}
 	tests := []struct {
-		id                  int
-		key                 string
-		timestamp           time.Time
-		value               uint8
-		statementType       uint8
-		createIfNotExists   bool
-		createWithTimestamp time.Time
-		want                result
+		id        string
+		statement Statement
 	}{
-		{1, "k1", x, StateActive, StatementAdd, false, x, result{true, 0}},
-		{2, "k1", x, StateActive, StatementAdd, true, x, result{false, 1}},
-		{3, "k1", x, StateActive, StatementAdd, true, x.Add(5 * time.Minute), result{true, 1}},
-		{4, "k1", x, StateActive, 2, true, x, result{true, 0}},
+		{"Add1", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 0}},
+		{"Add2", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 10}},
+		{"Add3", Statement{"k1", x.Add(-time.Second), StateActive, StatementAdd, true, x, f, 0}},
+		{"Roll1", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 0}},
+		{"Roll2", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 5}},
+		{"Roll3", Statement{"k1", x.Add(-time.Second), StateActive, StatementRoll, true, x, f, 0}},
 	}
 	for _, tt := range tests {
-		store := NewStore()
-		statement := Statement{
-			Key:                 tt.key,
-			Timestamp:           tt.timestamp,
-			Value:               tt.value,
-			Type:                tt.statementType,
-			CreateIfNotExists:   tt.createIfNotExists,
-			CreateWithTimestamp: tt.createWithTimestamp,
-			CreateWithFrequency: testSequenceFrequency,
-		}
-		err := store.executeUnsafe(statement)
-		if err != nil {
-			if !tt.want.err {
-				t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
+		t.Run(tt.id, func(t *testing.T) {
+			var got, want result
+			want.seq = New(tt.statement.CreateWithTimestamp, tt.statement.CreateWithFrequency)
+			if tt.statement.CreateWithLength > 0 {
+				want.seq.SetLength(tt.statement.CreateWithLength)
 			}
-		} else if tt.want.err {
-			t.Fatalf("test %d: got error nil, want non nil error", tt.id)
-		}
-		if n := len(store.m); n != tt.want.length {
-			t.Fatalf("test %d: got %d, want %d", tt.id, n, tt.want.length)
-		}
-		if tt.want.length == 1 {
-			if _, ok := store.m[tt.key]; !ok {
-				t.Fatalf("test %d: expected key to exist in store", tt.id)
+			if tt.statement.Type == StatementAdd {
+				want.err = want.seq.Add(tt.statement.Timestamp, tt.statement.Value)
+			} else {
+				want.err = want.seq.Roll(tt.statement.Timestamp, tt.statement.Value)
 			}
-		}
+			store := NewStore()
+			got.err = store.Execute(tt.statement)
+			if got.err != nil {
+				if want.err == nil {
+					t.Fatalf("got error %s, want error nil", got.err)
+				}
+			} else {
+				if want.err != nil {
+					t.Fatal("got error nil, want non nil error")
+				}
+				var ok bool
+				got.seq, ok = store.m[tt.statement.Key]
+				if !ok {
+					t.Fatal("key should exist in store")
+				}
+				if !assertSequencesEqual(got.seq, want.seq) {
+					t.Fatalf("\ngot  %+v\nwant %+v", got.seq, want.seq)
+				}
+			}
+		})
 	}
 }
 

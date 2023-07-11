@@ -207,6 +207,55 @@ func TestStoreExecute(t *testing.T) {
 	}
 }
 
+func TestStoreBatch(t *testing.T) {
+	x, _ := time.Parse("2006-01-02 03:04:05", testSequenceTimestamp)
+	f := testSequenceFrequency
+	type result struct {
+		seq *Sequence
+		err error
+	}
+	statements := []Statement{
+		{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 0},
+		{"k2", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 10},
+		{"k3", x.Add(-time.Duration(f) * time.Second), StateActive, StatementAdd, true, x, f, 0},
+		{"k4", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 0},
+		{"k5", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 5},
+		{"k6", x.Add(-time.Duration(f) * time.Second), StateActive, StatementRoll, true, x, f, 0},
+	}
+	store := NewStore()
+	errors := store.Batch(statements).ErrorVars()
+	for i, statement := range statements {
+		var got, want result
+		want.seq = New(statement.CreateWithTimestamp, statement.CreateWithFrequency)
+		if statement.CreateWithLength > 0 {
+			want.seq.SetLength(statement.CreateWithLength)
+		}
+		if statement.Type == StatementAdd {
+			want.err = want.seq.Add(statement.Timestamp, statement.Value)
+		} else {
+			want.err = want.seq.Roll(statement.Timestamp, statement.Value)
+		}
+		got.err = errors[i]
+		if got.err != nil {
+			if want.err == nil {
+				t.Fatalf("got error %s, want error nil", got.err)
+			}
+		} else {
+			if want.err != nil {
+				t.Fatal("got error nil, want non nil error")
+			}
+			var ok bool
+			got.seq, ok = store.m[statement.Key]
+			if !ok {
+				t.Fatal("key should exist in store")
+			}
+			if !assertSequencesEqual(got.seq, want.seq) {
+				t.Fatalf("\ngot  %+v\nwant %+v", got.seq, want.seq)
+			}
+		}
+	}
+}
+
 func newSliceOfValues(n int, x uint8) []uint8 {
 	s := make([]uint8, n)
 	if x == 0 {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -26,6 +25,36 @@ type Statement struct {
 	CreateWithTimestamp time.Time
 	CreateWithFrequency uint16
 	CreateWithLength    uint32
+}
+
+// A BatchResult provides detailed information about statements executed in batch.
+type BatchResult interface {
+	// ErrorVars returns a slice holding the return error of each statement.
+	ErrorVars() []error
+
+	// HasErrors returns true if at least one statement induced an error.
+	HasErrors() bool
+}
+
+// A batchResult holds detailed information about statements executed using
+// Store.Batch() and implements the BatchResult interface.
+type batchResult struct {
+	errors map[int]error
+	n      int
+}
+
+// ErrorVars implements the BatchResult interface.
+func (b batchResult) ErrorVars() []error {
+	s := make([]error, b.n)
+	for k := range b.errors {
+		s[k] = b.errors[k]
+	}
+	return s
+}
+
+// HasErrors implements the BatchResult interface.
+func (b batchResult) HasErrors() bool {
+	return len(b.errors) > 0
 }
 
 // A Store represents a collection of Sequences. A Store can be used simultaneously
@@ -98,22 +127,17 @@ func (s *Store) Execute(statement Statement) error {
 }
 
 // Batch executes multiple statements against the store. Individual errors are non
-// blocking but if one or more statements could not be executed or induced an error
-// the method will return a global error and a slice holding information about each
-// individual error.
-func (s *Store) Batch(statements []Statement) (error, []string) {
+// blocking but can be inspected through BatchResult.
+func (s *Store) Batch(statements []Statement) BatchResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var report []string
+	result := batchResult{errors: make(map[int]error), n: len(statements)}
 	for i, v := range statements {
 		if err := s.executeUnsafe(v); err != nil {
-			report = append(report, fmt.Sprintf("%s, at index %d", err, i))
+			result.errors[i] = err
 		}
 	}
-	if len(report) > 0 {
-		return fmt.Errorf("some operations could not be completed"), report
-	}
-	return nil, report
+	return result
 }
 
 // Keys returns the identifiers known in the store.

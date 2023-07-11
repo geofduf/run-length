@@ -167,10 +167,10 @@ func TestStoreExecute(t *testing.T) {
 	}{
 		{"Add1", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 0}},
 		{"Add2", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementAdd, true, x, f, 10}},
-		{"Add3", Statement{"k1", x.Add(-time.Second), StateActive, StatementAdd, true, x, f, 0}},
+		{"Add3", Statement{"k1", x.Add(-time.Duration(f) * time.Second), StateActive, StatementAdd, true, x, f, 0}},
 		{"Roll1", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 0}},
 		{"Roll2", Statement{"k1", x.Add(time.Duration(8*f) * time.Second), StateActive, StatementRoll, true, x, f, 5}},
-		{"Roll3", Statement{"k1", x.Add(-time.Second), StateActive, StatementRoll, true, x, f, 0}},
+		{"Roll3", Statement{"k1", x.Add(-time.Duration(f) * time.Second), StateActive, StatementRoll, true, x, f, 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.id, func(t *testing.T) {

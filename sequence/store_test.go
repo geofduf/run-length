@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -252,6 +253,42 @@ func TestStoreBatch(t *testing.T) {
 			if !assertSequencesEqual(got.seq, want.seq) {
 				t.Fatalf("\ngot  %+v\nwant %+v", got.seq, want.seq)
 			}
+		}
+	}
+}
+
+func TestBatchResultErrorVars(t *testing.T) {
+	e1 := errors.New("e1")
+	e2 := errors.New("e2")
+	b := batchResult{
+		errors: map[int]error{1: e1, 2: e2},
+		n:      5,
+	}
+	want := []error{nil, e1, e2, nil, nil}
+	got := b.ErrorVars()
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestBatchResultHasErrors(t *testing.T) {
+	tests := []struct {
+		id   int
+		b    batchResult
+		want bool
+	}{
+		{1, batchResult{errors: make(map[int]error), n: 3}, false},
+		{2, batchResult{errors: map[int]error{1: errors.New("e1"), 2: errors.New("e2")}, n: 3}, true},
+	}
+	for _, tt := range tests {
+		got := tt.b.HasErrors()
+		if got != tt.want {
+			t.Fatalf("test %d: got %t, want %t", tt.id, got, tt.want)
 		}
 	}
 }

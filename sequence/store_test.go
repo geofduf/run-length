@@ -293,6 +293,42 @@ func TestBatchResultHasErrors(t *testing.T) {
 	}
 }
 
+func TestStoreQuery(t *testing.T) {
+	type result struct {
+		qs  QuerySet
+		err error
+	}
+	f := int64(testSequenceFrequency)
+	store := NewStore()
+	x, _ := time.Parse("2006-01-02 15:04:05", testSequenceTimestamp)
+	s := NewWithValues(x, testSequenceFrequency, testValues)
+	store.Add("k1", s)
+	tests := []struct {
+		id       int
+		start    time.Time
+		end      time.Time
+		interval time.Duration
+	}{
+		{1, shift(s, -5, -1), shift(s, 25, -1), time.Duration(f*5) * time.Second},
+		{2, shift(s, -5, -1), shift(s, -5, -2), time.Duration(f*5) * time.Second},
+	}
+	for _, tt := range tests {
+		var got, want result
+		got.qs, got.err = store.Query("k1", tt.start, tt.end, tt.interval)
+		want.qs, want.err = s.Query(tt.start, tt.end, tt.interval)
+		if got.err != nil {
+			if want.err == nil {
+				t.Fatalf("got error %s, want error nil", got.err)
+			}
+		} else if want.err != nil {
+			t.Fatal("got error nil, want non nil error")
+		}
+		if !assertQuerySetEqual(got.qs, want.qs) {
+			t.Fatalf("\ngot  %+v\nwant %+v", got.qs, want.qs)
+		}
+	}
+}
+
 func newSliceOfValues(n int, x uint8) []uint8 {
 	s := make([]uint8, n)
 	if x == 0 {

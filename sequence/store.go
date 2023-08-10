@@ -214,6 +214,16 @@ func (s *Store) Shrink() {
 	s.m = m
 }
 
+// TrimLeft executes Sequence.TrimLeft(t) for every sequence in the store. Resulting
+// errors are ignored.
+func (s *Store) TrimLeft(t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k := range s.m {
+		s.m[k].TrimLeft(t)
+	}
+}
+
 // executeUnsafe executes a statement against the store, returning an error if the
 // statement cannot be executed or if the underlying operation returned an error.
 // This method is not goroutine-safe. The caller is responsible for properly

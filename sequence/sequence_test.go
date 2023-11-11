@@ -191,10 +191,9 @@ func TestSequenceAdd(t *testing.T) {
 				t.Fatalf("test %d: got error %s, want error nil", tt.id, err)
 			}
 			continue
-		} else {
-			if tt.want.err {
-				t.Fatalf("test %d: got error nil, want non nil error", tt.id)
-			}
+		}
+		if tt.want.err {
+			t.Fatalf("test %d: got error nil, want non nil error", tt.id)
 		}
 		want := &Sequence{x.Unix(), MaxSequenceLength, uint32(tt.shift + 1), testSequenceFrequency, tt.want.data}
 		if !assertSequencesEqual(got, want) {

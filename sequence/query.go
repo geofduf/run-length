@@ -70,11 +70,11 @@ func (s *Sequence) Values(start, end time.Time) ([]uint8, int64, error) {
 				dstIndex++
 			}
 			break
-		} else {
-			for i := int64(0); i < count-offset; i++ {
-				data[dstIndex] = v
-				dstIndex++
-			}
+		}
+
+		for i := int64(0); i < count-offset; i++ {
+			data[dstIndex] = v
+			dstIndex++
 		}
 
 		srcIndex += count

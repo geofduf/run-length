@@ -228,7 +228,8 @@ func (s *Sequence) trimLeft(x uint32) {
 			s.count -= x
 			s.ts += int64(x) * int64(s.frequency)
 			break
-		} else if y > x {
+		}
+		if y > x {
 			buf := encode(y-x, value)
 			offset := bytesRead - len(buf)
 			for i := 0; i < len(buf); i++ {
@@ -308,7 +309,8 @@ func (s *Sequence) SetLength(x uint32) {
 			copy(buf, s.data)
 			s.data = buf
 			break
-		} else if v > x {
+		}
+		if v > x {
 			last := encode(count-(v-x), value)
 			buf := make([]byte, p+len(last))
 			copy(buf, append(s.data[:p], last...))
